@@ -5,7 +5,7 @@
 .DESCRIPTION
     Copies every file under templates/ into -TargetPath, replacing the template tokens with the
     values supplied as parameters, and creates the source, test and ADR folders the standards
-    expect.
+    expect. It writes files only: nothing here talks to Dataverse.
 
     The script never overwrites an existing file unless -Force is supplied: it collects every
     collision first and aborts without touching the working tree. Use -DryRun to print the
@@ -23,22 +23,23 @@
       - -Force:        overwrite. Only after the caller has looked at what is being replaced.
 
     Run scripts/discover.ps1 first to find out which of the three applies, and to read the
-    publisher, prefix, solution and namespace a project already uses.
+    publisher, prefix, core solution and namespace a project already uses.
 
 .EXAMPLE
-    ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherName 'Northwind Consulting'
-        -PublisherPrefix nwc -SolutionName NorthwindCore -RootNamespace Northwind
+    ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
+        -PublisherPrefix nwc -CoreSolution NorthwindCore -RootNamespace Northwind
         -ProjectDescription 'Customer Service implementation for Northwind.' -DryRun
 
 .EXAMPLE
-    ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherName 'Northwind Consulting'
-        -PublisherPrefix nwc -SolutionName NorthwindCore -RootNamespace Northwind
+    # No core solution: every component lives in the feature solution of its branch.
+    ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
+        -PublisherPrefix nwc -RootNamespace Northwind
         -ProjectDescription 'Customer Service implementation for Northwind.' -TargetPath C:\repos\northwind
 
 .EXAMPLE
     # Adopt the harness into an existing repository: add the missing docs, touch nothing else.
-    ./scripts/scaffold.ps1 -ProjectName Acme -PublisherName 'Acme Consulting' -PublisherPrefix acme
-        -SolutionName AcmeCore -RootNamespace Acme.Crm -ProjectDescription 'Customer Service for Acme.'
+    ./scripts/scaffold.ps1 -ProjectName Acme -PublisherUniqueName AcmeConsulting -PublisherPrefix acme
+        -CoreSolution AcmeCore -RootNamespace Acme.Crm -ProjectDescription 'Customer Service for Acme.'
         -TargetPath C:\repos\acme -SkipExisting -SkipLayout -Json
 #>
 [CmdletBinding()]
@@ -47,19 +48,20 @@ param(
     [string]$ProjectName,
 
     [Parameter(Mandatory = $true)]
-    [string]$PublisherName,
+    [string]$PublisherUniqueName,
 
     [Parameter(Mandatory = $true)]
     [string]$PublisherPrefix,
-
-    [Parameter(Mandatory = $true)]
-    [string]$SolutionName,
 
     [Parameter(Mandatory = $true)]
     [string]$RootNamespace,
 
     [Parameter(Mandatory = $true)]
     [string]$ProjectDescription,
+
+    # Unique name of the core solution in DEV, or 'none' when the project has no core solution and
+    # every component lives in the feature solution of the branch that created it.
+    [string]$CoreSolution = 'none',
 
     [string]$TargetPath = (Get-Location).Path,
 
@@ -105,7 +107,6 @@ $keepDirectories = @(
     'src/Plugins'
     'src/CustomAPIs'
     'src/WebResources'
-    "src/Solutions/$SolutionName"
     'tests/Plugins'
     'tests/CustomAPIs'
     'docs/adr'
@@ -145,8 +146,8 @@ function Assert-Value {
 Assert-Value -Name 'ProjectName' -Value $ProjectName -Pattern '^[A-Za-z][A-Za-z0-9]*$' `
     -Requirement 'It lands in .NET namespaces and JavaScript form API objects, so it must start with a letter and contain letters and digits only.'
 
-Assert-Value -Name 'PublisherName' -Value $PublisherName `
-    -Requirement 'Use the Dataverse publisher display name.'
+Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
+    -Requirement 'Use the publisher unique name, not its display name: pac solution init needs it to create feature solutions. Letters, digits and underscores only.'
 
 Assert-Value -Name 'PublisherPrefix' -Value $PublisherPrefix -Pattern '^[a-z][a-z0-9]{1,7}$' `
     -Requirement 'A Dataverse customization prefix is 2 to 8 lowercase alphanumeric characters and starts with a letter.'
@@ -155,8 +156,8 @@ if ($PublisherPrefix -eq 'mscrm') {
     Stop-WithError "PublisherPrefix 'mscrm' is reserved by Dataverse. Choose another prefix."
 }
 
-Assert-Value -Name 'SolutionName' -Value $SolutionName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
-    -Requirement 'This is the solution unique name, not its display name: no spaces or punctuation.'
+Assert-Value -Name 'CoreSolution' -Value $CoreSolution -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
+    -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution.\"
 
 Assert-Value -Name 'RootNamespace' -Value $RootNamespace -Pattern '^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$' `
     -Requirement 'It must be a valid .NET namespace, optionally dotted.'
@@ -179,12 +180,12 @@ if (-not (Test-Path -LiteralPath $TargetPath)) {
 $TargetPath = (Resolve-Path -LiteralPath $TargetPath).Path
 
 $tokens = [ordered]@{
-    '{{project_name}}'        = $ProjectName
-    '{{publisher_name}}'      = $PublisherName
-    '{{publisher_prefix}}'    = $PublisherPrefix
-    '{{solution_name}}'       = $SolutionName
-    '{{root_namespace}}'      = $RootNamespace
-    '{{project_description}}' = $ProjectDescription
+    '{{project_name}}'          = $ProjectName
+    '{{publisher_unique_name}}' = $PublisherUniqueName
+    '{{publisher_prefix}}'      = $PublisherPrefix
+    '{{core_solution}}'         = $CoreSolution
+    '{{root_namespace}}'        = $RootNamespace
+    '{{project_description}}'   = $ProjectDescription
 }
 
 $plannedFiles = Get-ChildItem -LiteralPath $templatesRoot -Recurse -File -Force |
@@ -277,12 +278,12 @@ function Write-Report {
             outcome     = $Outcome
             targetPath  = $TargetPath
             values      = [ordered]@{
-                projectName        = $ProjectName
-                publisherName      = $PublisherName
-                publisherPrefix    = $PublisherPrefix
-                solutionName       = $SolutionName
-                rootNamespace      = $RootNamespace
-                projectDescription = $ProjectDescription
+                projectName         = $ProjectName
+                publisherUniqueName = $PublisherUniqueName
+                publisherPrefix     = $PublisherPrefix
+                coreSolution        = $CoreSolution
+                rootNamespace       = $RootNamespace
+                projectDescription  = $ProjectDescription
             }
             mode        = [ordered]@{
                 dryRun                  = [bool]$DryRun
@@ -391,7 +392,7 @@ Write-Report -Outcome 'written' `
 if (-not $Json) {
     Write-Host ''
     Write-Host "Project:   $ProjectName" -ForegroundColor Cyan
-    Write-Host "Publisher: $PublisherName ($PublisherPrefix)" -ForegroundColor Cyan
-    Write-Host "Solution:  $SolutionName" -ForegroundColor Cyan
+    Write-Host "Publisher: $PublisherUniqueName ($PublisherPrefix)" -ForegroundColor Cyan
+    Write-Host "Core:      $CoreSolution" -ForegroundColor Cyan
     Write-Host "Namespace: $RootNamespace" -ForegroundColor Cyan
 }

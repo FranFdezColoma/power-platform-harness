@@ -40,9 +40,8 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Enable auditing per table and per column where it is actually needed. Enabling it globally is a storage and performance cost with no owner.
 - Never create business data as a side effect of testing a change. Use DEV data created explicitly for that purpose.
 
-## Verification
+## After the change
 
-- After the change, read the metadata back from the environment and confirm it matches the intent. Never assert from memory what the platform accepted.
-- The unpacked solution diff is committed with the change (`scripts/sync-solution.ps1`).
-- `pac solution check` reports no high-severity issues. If it could not be run, say so explicitly.
+- Create every table, column and relationship in the solution `docs/development/solutions.md` names for the current branch.
+- Read the metadata back from the environment and confirm it matches the intent. Never assert from memory what the platform accepted.
 - Deleting or retyping a column, deleting a table or a relationship: prepare the operation and hand it over. A human executes it.

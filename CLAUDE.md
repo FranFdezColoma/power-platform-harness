@@ -13,8 +13,8 @@ It is not a Power Platform project: nothing here is deployed to Dataverse. The s
 | `.claude-plugin/plugin.json` | Plugin manifest. Lists the skills explicitly |
 | `.claude-plugin/marketplace.json` | Makes this repo its own single-plugin marketplace |
 | `skills/set-power-platform/SKILL.md` | The skill: discovers, collects what discovery could not, runs the scaffold, reports |
-| `scripts/discover.ps1` | Read-only inspection of a repository and its environment. Emits JSON. Writes nothing |
-| `scripts/standards-baseline.json` | Every version, framework and layout decision the templates assert, and where each is asserted |
+| `scripts/discover.ps1` | Read-only inspection of a repository, the machine's toolchain and the DEV environment. Emits JSON. Writes nothing |
+| `scripts/standards-baseline.json` | Every version, framework and layout decision the templates assert, plus the machine requirements, and where each is asserted |
 | `scripts/scaffold.ps1` | Deterministic copy + token substitution. The only thing that writes files |
 | `templates/` | Content shipped verbatim into every scaffolded project |
 
@@ -32,8 +32,9 @@ generates content that belongs in a template. A change that blurs one of those i
   `templates/docs/development/` without adding its row to that index leaves the file unreachable.
 - Keep the template free of anything project-specific or client-specific. This repository is
   public: no environment urls, tenant ids, client names, solution names or real prefixes.
-- A version, framework or layout path asserted in `templates/docs/development/*.md` is also
-  recorded in `scripts/standards-baseline.json`, which is what lets an existing project be
+- A version, framework or layout path asserted in `templates/docs/development/*.md`, and every
+  tool version in `templates/docs/agents/toolchain.md`, is also recorded in
+  `scripts/standards-baseline.json`, which is what lets an existing project be
   compared against the standards instead of being retargeted to them. Change both in the same
   commit: `discover.ps1` reports an entry whose `assertedText` no longer appears in the file it
   points at, and a stale baseline silently stops reporting real deviations.
@@ -57,9 +58,9 @@ the `$tokens` hashtable in `scripts/scaffold.ps1`, and the value table in
 | Token | Resolved from |
 | --- | --- |
 | `{{project_name}}` | `-ProjectName` |
-| `{{publisher_name}}` | `-PublisherName` |
+| `{{publisher_unique_name}}` | `-PublisherUniqueName` |
 | `{{publisher_prefix}}` | `-PublisherPrefix` |
-| `{{solution_name}}` | `-SolutionName` |
+| `{{core_solution}}` | `-CoreSolution` (optional, defaults to `none`) |
 | `{{root_namespace}}` | `-RootNamespace` |
 | `{{project_description}}` | `-ProjectDescription` |
 
@@ -83,17 +84,17 @@ pwsh -NoProfile -File ./scripts/discover.ps1 -SkipEnvironment |
 # Scaffold into a throwaway folder and inspect the result
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "pph-$([guid]::NewGuid())"
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
-    -PublisherName 'Northwind Consulting' -PublisherPrefix nwc -SolutionName NorthwindCore `
+    -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
     -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp
 
 # A second run over the same folder must abort without writing
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
-    -PublisherName 'Northwind Consulting' -PublisherPrefix nwc -SolutionName NorthwindCore `
+    -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
     -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp
 
 # The same run with -SkipExisting must add nothing and abort nothing
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
-    -PublisherName 'Northwind Consulting' -PublisherPrefix nwc -SolutionName NorthwindCore `
+    -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
     -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp -SkipExisting
 ```
 

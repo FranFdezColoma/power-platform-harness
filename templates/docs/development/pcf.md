@@ -8,7 +8,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - React: platform library `16.14.0`.
 - Fluent UI: v9 via platform library `9.46.2`; do not bundle React or Fluent UI.
 - Use the repository's pinned TypeScript, `pcf-scripts` and platform-library (React/Fluent) versions declared in `ControlManifest.Input.xml`; do not upgrade any of them independently of a reviewed change — a newer Fluent platform-library version than the one declared here has caused solution import failures.
-- Tests: Vitest + Testing Library. (Optional) E2E: Playwright against a real DEV environment (only if necessary tools are available).
+- Tests: Vitest + Testing Library.
 
 ## Structure
 - Scaffold new controls with `pac pcf init -ns <Namespace> -n <ControlName> -t field -fw react -npm` (use `-t dataset` for dataset-bound controls); avoid custom build architecture unless required.
@@ -64,4 +64,3 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Test React components through observable UI behavior with Testing Library.
 - Mock PCF context and framework APIs explicitly.
 - Do not rely on the PCF test harness for unit tests.
-- If E2E tests are available, they MUST run against a real DEV environment and verify the control in its actual host context.

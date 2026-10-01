@@ -5,14 +5,16 @@
 .DESCRIPTION
     Answers the questions the set-power-platform skill needs before it writes anything:
 
-      - Which tools are available (pwsh, pac, git, dotnet, node, gh)?
-      - Is playwright-cli installed for browser automation, or only the Playwright MCP server?
-      - Is the Dataverse MCP server's local proxy installed and registered with the agent?
+      - Are the required tools installed (PowerShell, git, .NET SDK, Node.js, pac), and does each
+        meet the minimum and preferred version in scripts/standards-baseline.json?
+      - Are the recommended CLIs installed (playwright-cli, the Dataverse MCP local proxy)? MCP
+        servers registered with the agent are not visible from here: the agent checks its own.
       - Is this folder empty, or an existing project the harness has to adapt to?
-      - Which publisher, prefix, solution and namespace does the project already use?
+      - Which publisher, prefix, core solution and namespace does the project already use?
       - Which versions and frameworks does it actually use, and where do those differ from the
         versions the shipped standards assert (scripts/standards-baseline.json)?
-      - Which environment is the active pac profile pointing at?
+      - Does pac have an authentication profile, which environment does it point at, and which
+        unmanaged solutions exist there?
 
     Everything here reads. Nothing is created, modified or deleted, in the repository or in the
     environment. Output is a single JSON document on stdout so the caller does not have to parse
@@ -366,7 +368,7 @@ function Get-SolutionFacts {
 
     foreach ($relative in $SolutionXmlFiles) {
         $document = Read-XmlFile -FullPath (Join-Path $Root $relative)
-        # src/Solutions/<Name>/Other/Solution.xml -> src/Solutions/<Name>
+        # <folder>/Other/Solution.xml -> <folder>
         $folder = ($relative -replace '/Other/Solution\.xml$', '')
 
         if (-not $document) {
@@ -677,21 +679,56 @@ function Get-DotnetGlobalToolIds {
     return $result
 }
 
-function Get-ClaudeMcpServers {
-    param([string]$Output)
+function Get-DotnetSdkReport {
+    param($Report)
 
-    # `claude mcp list` prints one server per line as "<name>: <command/url> - <status>". The
-    # exact command and status text vary by version, so only the name and the raw line are kept:
-    # callers match on the raw text, which is more resilient to format drift than column offsets.
-    $servers = New-Object System.Collections.Generic.List[pscustomobject]
-    foreach ($line in ($Output -split "`r?`n")) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed) { continue }
-        $match = [regex]::Match($trimmed, '^(?<name>[^:]+):\s*(?<rest>.+)$')
-        if (-not $match.Success) { continue }
-        $servers.Add([pscustomobject]@{ name = $match.Groups['name'].Value.Trim(); raw = $trimmed })
+    # `dotnet --version` reports the SDK a global.json pins, not the newest one installed, so a
+    # repository pinned to 6 would hide an installed 10. List the SDKs and take the highest.
+    if (-not $Report['present']) { return $Report }
+
+    $run = Invoke-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30
+    if ($run.Ran -and $run.ExitCode -eq 0) {
+        $versions = @(foreach ($line in ($run.Stdout -split "`r?`n")) {
+            $match = [regex]::Match($line, '^\s*(\d+\.\d+\.\d+)')
+            if ($match.Success) { [version]$match.Groups[1].Value }
+        })
+        if ($versions.Count -gt 0) {
+            $Report['version'] = ($versions | Sort-Object -Descending | Select-Object -First 1).ToString()
+            $Report['note'] = $null
+        }
+        else {
+            $Report['version'] = $null
+            $Report['note'] = 'dotnet is installed but reports no SDK, only a runtime.'
+        }
     }
-    return $servers
+    return $Report
+}
+
+function ConvertTo-ComparableVersion {
+    param([string]$Text)
+
+    if (-not $Text) { return $null }
+    $match = [regex]::Match($Text, '(\d+)(\.(\d+))?(\.(\d+))?')
+    if (-not $match.Success) { return $null }
+
+    $major = [int]$match.Groups[1].Value
+    $minor = if ($match.Groups[3].Success) { [int]$match.Groups[3].Value } else { 0 }
+    $build = if ($match.Groups[5].Success) { [int]$match.Groups[5].Value } else { 0 }
+    return New-Object System.Version($major, $minor, $build)
+}
+
+function Get-VersionStatus {
+    param([bool]$Present, [string]$Version, [string]$Minimum, [string]$Preferred)
+
+    if (-not $Present) { return 'missing' }
+    if (-not $Minimum -and -not $Preferred) { return 'ok' }
+
+    $actual = ConvertTo-ComparableVersion -Text $Version
+    if (-not $actual) { return 'unknown' }
+
+    if ($Minimum -and $actual -lt (ConvertTo-ComparableVersion -Text $Minimum)) { return 'below-minimum' }
+    if ($Preferred -and $actual -lt (ConvertTo-ComparableVersion -Text $Preferred)) { return 'below-preferred' }
+    return 'ok'
 }
 
 # --------------------------------------------------------------------------------------------
@@ -715,33 +752,22 @@ try {
 
 $tooling = [ordered]@{
     pwsh          = Get-ToolReport -Name 'pwsh' -VersionArguments @('--version')
+    powershell    = Get-ToolReport -Name 'powershell' -VersionArguments @('-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()')
     git           = Get-ToolReport -Name 'git' -VersionArguments @('--version')
     pac           = Get-ToolReport -Name 'pac' -VersionArguments @('--version')
     dotnet        = Get-ToolReport -Name 'dotnet' -VersionArguments @('--version')
     node          = Get-ToolReport -Name 'node' -VersionArguments @('--version')
     npm           = Get-ToolReport -Name 'npm' -VersionArguments @('--version')
     gh            = Get-ToolReport -Name 'gh' -VersionArguments @('--version')
-    claude        = Get-ToolReport -Name 'claude' -VersionArguments @('--version')
     playwrightCli = Get-ToolReport -Name 'playwright-cli' -VersionArguments @('--version')
 }
+$tooling['dotnet'] = Get-DotnetSdkReport -Report $tooling['dotnet']
 $tooling['currentPowerShell'] = [ordered]@{
     present = $true
     version = $PSVersionTable.PSVersion.ToString()
     edition = [string]$PSVersionTable.PSEdition
 }
 
-if (-not $tooling.pwsh.present -and $PSVersionTable.PSVersion.Major -lt 6) {
-    $notes.Add('pwsh 7 is not installed. The scaffold and sync-solution.ps1 run on Windows PowerShell 5.1, but pac and PCF tooling are only tested against pwsh 7.') | Out-Null
-}
-if (-not $tooling.pac.present) {
-    $notes.Add('pac is not installed, so no environment fact could be read. Install the Power Platform CLI to let discovery propose the publisher, prefix and solution from Dataverse.') | Out-Null
-}
-
-# playwright-cli (@playwright/cli): a coding-agent-oriented CLI for browser automation, and the
-# preferred alternative to the Playwright MCP server because it avoids loading tool schemas and
-# accessibility trees into the model context. Whether it or the MCP server is actually the better
-# choice depends on what is already configured, so the note is composed once the MCP servers this
-# agent has registered are known, in the environment section below.
 $dataverseMcpProxyPackageId = 'microsoft.powerplatform.dataverse.mcp'
 $dotnetGlobalTools = Get-DotnetGlobalToolIds -DotnetPresent $tooling.dotnet.present
 $dataverseMcpProxyInstalled = @($dotnetGlobalTools.packageIds) -contains $dataverseMcpProxyPackageId
@@ -771,7 +797,7 @@ $missing = @($harnessFiles | Where-Object { $files -notcontains $_ })
 
 # The three files the harness cannot merge into silently. .gitignore is excluded on purpose: an
 # existing .gitignore is a collision to resolve, not evidence that the harness is installed.
-$harnessMarkers = @('CLAUDE.md', 'docs/agents/development-standards.md', 'scripts/sync-solution.ps1')
+$harnessMarkers = @('CLAUDE.md', 'docs/agents/development-standards.md')
 $markersPresent = @($harnessMarkers | Where-Object { $files -contains $_ })
 
 $solutionXmlFiles = Select-Files -Files $files -Pattern '(?i)(^|/)Other/Solution\.xml$' -Limit 50
@@ -872,7 +898,7 @@ $repository = [ordered]@{
     }
 }
 
-foreach ($expected in @('src/Plugins', 'src/CustomAPIs', 'src/WebResources', 'src/Solutions', 'tests/Plugins', 'tests/CustomAPIs', 'docs/adr')) {
+foreach ($expected in @('src/Plugins', 'src/CustomAPIs', 'src/WebResources', 'tests/Plugins', 'tests/CustomAPIs', 'docs/adr')) {
     $repository.layout.expected[$expected] = ($inventory.Directories -contains $expected)
 }
 
@@ -897,6 +923,7 @@ $node = [ordered]@{
 $environment = [ordered]@{
     probed             = -not $SkipEnvironment
     authProfiles       = @()
+    hasAuthProfile     = $false
     connected          = $false
     org                = $null
     nameSignal         = 'unknown'
@@ -912,6 +939,7 @@ if (-not $SkipEnvironment -and $tooling.pac.present) {
     $authRun = Invoke-Tool -Name 'pac' -Arguments @('auth', 'list')
     if ($authRun.Ran -and $authRun.ExitCode -eq 0) {
         $environment['authProfiles'] = @(Get-AuthProfiles -Output $authRun.Stdout)
+        $environment['hasAuthProfile'] = @($environment['authProfiles']).Count -gt 0
     }
     else {
         $environment.errors += "pac auth list failed: $(if ($authRun.Error) { $authRun.Error } else { $authRun.Stderr })"
@@ -933,7 +961,7 @@ if (-not $SkipEnvironment -and $tooling.pac.present) {
     else {
         $detail = if ($whoRun.Error) { $whoRun.Error } elseif ($whoRun.Stderr) { $whoRun.Stderr } else { $whoRun.Stdout }
         $environment.errors += "pac org who failed: $detail"
-        $notes.Add('No Dataverse environment is connected, so the publisher, prefix and solution could not be read from the platform. Authenticate with pac auth create, or supply the values.') | Out-Null
+        $notes.Add('No Dataverse environment is connected, so the core solution and publisher could not be read from the platform. Authenticate with pac auth create, or supply the values.') | Out-Null
     }
 
     if ($environment['connected']) {
@@ -949,7 +977,7 @@ if (-not $SkipEnvironment -and $tooling.pac.present) {
             # mature environment: report those, capped.
             $environment['solutions'] = @($environmentSolutions | Where-Object { -not $_.managed } | Select-Object -First 100)
             if (@($environmentSolutions | Where-Object { $_.possiblyTruncated }).Count -gt 0) {
-                $notes.Add('pac solution list truncates the unique name column, and at least one name reached that width. Confirm a truncated name against the environment before using it as SolutionName.') | Out-Null
+                $notes.Add('pac solution list truncates the unique name column, and at least one name reached that width. Confirm a truncated name against the environment before using it as CoreSolution.') | Out-Null
             }
         }
         else {
@@ -1021,94 +1049,24 @@ elseif (-not $SkipEnvironment) {
     $environment.errors += 'pac is not installed; no environment fact was read.'
 }
 
-# ---- coding-agent integrations: Playwright and the Dataverse MCP server -------------------
+# ---- recommended tools -----------------------------------------------------------------------
 
-# `claude mcp list` can report a configured server as unreachable, which is itself a network
-# probe, so it is skipped under -SkipEnvironment for the same reason `pac` calls are.
-$agentTooling = [ordered]@{
-    playwright = [ordered]@{
-        cliInstalled   = $tooling.playwrightCli.present
-        cliVersion     = $tooling.playwrightCli.version
-        mcpConfigured  = $false
-        mcpServerName  = $null
-        mcpServerRaw   = $null
-        status         = $null
-        recommendation = $null
+# Only the command-line side is visible from a script. Whether a Dataverse or Playwright MCP
+# server is registered depends on the agent running the skill, and that agent checks its own
+# tools: asking one agent's CLI (claude mcp list) would be wrong for every other agent.
+$recommendedTools = [ordered]@{
+    playwrightCli = [ordered]@{
+        installed = $tooling.playwrightCli.present
+        version   = $tooling.playwrightCli.version
+        install   = 'npm install -g @playwright/cli@latest'
+        mcpAlternative = 'claude mcp add playwright npx @playwright/mcp@latest'
     }
-    dataverseMcp = [ordered]@{
-        localProxyInstalled = $dataverseMcpProxyInstalled
-        mcpConfigured       = $false
-        mcpServerName       = $null
-        mcpServerRaw        = $null
-        status              = $null
-        recommendation      = $null
+    dataverseMcpProxy = [ordered]@{
+        installed = $dataverseMcpProxyInstalled
+        install   = 'dotnet tool install --global Microsoft.PowerPlatform.Dataverse.MCP'
+        docs      = 'https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp'
+        note      = 'The proxy is one of two ways to connect: the remote endpoint needs no local install. Either way the server must be registered with the agent and the feature enabled on the environment.'
     }
-    mcpListProbed = $false
-    mcpListError  = $null
-}
-
-if (-not $SkipEnvironment) {
-    if ($tooling.claude.present) {
-        $mcpListRun = Invoke-Tool -Name 'claude' -Arguments @('mcp', 'list') -Timeout ([Math]::Max($TimeoutSeconds, 60))
-        if ($mcpListRun.Ran -and $mcpListRun.ExitCode -eq 0) {
-            $agentTooling['mcpListProbed'] = $true
-            $mcpServers = @(Get-ClaudeMcpServers -Output $mcpListRun.Stdout)
-            $playwrightServer = @($mcpServers | Where-Object { $_.raw -match '(?i)playwright' }) | Select-Object -First 1
-            $dataverseServer = @($mcpServers | Where-Object { $_.raw -match '(?i)dataverse' }) | Select-Object -First 1
-
-            if ($playwrightServer) {
-                $agentTooling.playwright['mcpConfigured'] = $true
-                $agentTooling.playwright['mcpServerName'] = $playwrightServer.name
-                $agentTooling.playwright['mcpServerRaw'] = $playwrightServer.raw
-            }
-            if ($dataverseServer) {
-                $agentTooling.dataverseMcp['mcpConfigured'] = $true
-                $agentTooling.dataverseMcp['mcpServerName'] = $dataverseServer.name
-                $agentTooling.dataverseMcp['mcpServerRaw'] = $dataverseServer.raw
-            }
-        }
-        else {
-            $agentTooling['mcpListError'] = if ($mcpListRun.Error) { $mcpListRun.Error } elseif ($mcpListRun.Stderr) { $mcpListRun.Stderr } else { $mcpListRun.Stdout }
-        }
-    }
-    else {
-        $agentTooling['mcpListError'] = "'claude' was not found on PATH; MCP server registrations could not be checked."
-    }
-}
-
-# Playwright: playwright-cli is the preferred tool for a coding agent doing browser automation
-# (fewer tokens than MCP, since it skips tool schemas and accessibility trees). Recommend it even
-# when the MCP server already covers the same need.
-if ($agentTooling.playwright.cliInstalled) {
-    $agentTooling.playwright['status'] = 'cli-installed'
-}
-elseif ($agentTooling.playwright.mcpConfigured) {
-    $agentTooling.playwright['status'] = 'mcp-only'
-    $agentTooling.playwright['recommendation'] = "Only the Playwright MCP server ('$($agentTooling.playwright.mcpServerName)') is configured. Coding agents should prefer playwright-cli: it is more token-efficient than MCP because it does not load tool schemas or accessibility trees into context. Install: npm install -g @playwright/cli@latest (https://github.com/microsoft/playwright-cli)."
-    $notes.Add($agentTooling.playwright.recommendation) | Out-Null
-}
-else {
-    $agentTooling.playwright['status'] = 'none'
-    $agentTooling.playwright['recommendation'] = "Neither playwright-cli nor the Playwright MCP server is set up. Prefer playwright-cli for coding agents: npm install -g @playwright/cli@latest (https://github.com/microsoft/playwright-cli). If an MCP server is required instead, use: claude mcp add playwright npx @playwright/mcp@latest."
-    $notes.Add($agentTooling.playwright.recommendation) | Out-Null
-}
-
-# Dataverse MCP: a server registered with the agent (local-proxy or remote-endpoint approach,
-# per https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp-other-clients)
-# is what makes it usable. The local proxy dotnet tool is only one of the two connection methods,
-# so its presence alone, without a registered server, is a half-finished setup worth flagging.
-if ($agentTooling.dataverseMcp.mcpConfigured) {
-    $agentTooling.dataverseMcp['status'] = 'configured'
-}
-elseif ($agentTooling.dataverseMcp.localProxyInstalled) {
-    $agentTooling.dataverseMcp['status'] = 'proxy-only'
-    $agentTooling.dataverseMcp['recommendation'] = 'Microsoft.PowerPlatform.Dataverse.MCP is installed as a global dotnet tool but no MCP server using it is registered with this agent. Register it (claude mcp add) so it is available for use. Docs: https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp-other-clients.'
-    $notes.Add($agentTooling.dataverseMcp.recommendation) | Out-Null
-}
-else {
-    $agentTooling.dataverseMcp['status'] = 'none'
-    $agentTooling.dataverseMcp['recommendation'] = 'The Dataverse MCP server is not installed or configured. Either register the remote endpoint directly (an Entra app registration; see docs), or install the local proxy (dotnet tool install --global Microsoft.PowerPlatform.Dataverse.MCP; requires .NET SDK 8+) and register it as an MCP server for this agent. The Dataverse MCP feature must also be enabled on the environment (Power Platform admin center > environment > Settings > Product > Features > Dataverse Model Context Protocol). Docs: https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp.'
-    $notes.Add($agentTooling.dataverseMcp.recommendation) | Out-Null
 }
 
 # ---- deviations from the shipped standards -------------------------------------------------
@@ -1199,6 +1157,10 @@ if ($baseline) {
                 }
             }
         }
+
+        # Machine requirements describe the developer's machine, not the repository: they are
+        # reported under toolchain below, never as a deviation of the project.
+        if ($assertion.kind -eq 'machine') { continue }
 
         switch ($assertion.id) {
 
@@ -1342,24 +1304,6 @@ if ($baseline) {
                 else { $assessments += New-Assessment -Assertion $assertion -Status 'match' -Detected 'plain JavaScript' -Evidence $webResourceFolders }
             }
 
-            'alm.solutionMirrorPath' {
-                if (-not $solutions) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No unpacked solution is committed.' }
-                else {
-                    $misplaced = @($solutions | Where-Object { $_.folder -ne "src/Solutions/$($_.uniqueName)" })
-                    $status = if ($misplaced.Count -eq 0) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected @($solutions | ForEach-Object { $_.folder }) -Evidence @($misplaced | ForEach-Object { "$($_.folder) holds solution '$($_.uniqueName)'; the standard expects src/Solutions/$($_.uniqueName)" })
-                }
-            }
-
-            'alm.singleSolution' {
-                $unmanaged = @($solutions | Where-Object { $_.managed -ne $true })
-                if (-not $solutions) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No unpacked solution is committed.' }
-                else {
-                    $status = if ($unmanaged.Count -le 1) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $unmanaged.Count -Evidence @($unmanaged | ForEach-Object { "$($_.uniqueName) ($($_.folder))" })
-                }
-            }
-
             'webresources.buildProject' {
                 $hasWebResources = @($repository.layout.actual.webResourceFolders).Count -gt 0 -or $repository.counts.javascript -gt 0
                 if ($classification -eq 'greenfield' -or -not $hasWebResources) {
@@ -1385,8 +1329,7 @@ if ($baseline) {
                 foreach ($group in @(
                     @{ Expected = 'src/Plugins'; Found = $repository.layout.actual.pluginFolders },
                     @{ Expected = 'src/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
-                    @{ Expected = 'src/WebResources'; Found = $repository.layout.actual.webResourceFolders },
-                    @{ Expected = 'src/Solutions'; Found = $repository.layout.actual.solutionFolders }
+                    @{ Expected = 'src/WebResources'; Found = $repository.layout.actual.webResourceFolders }
                 )) {
                     foreach ($found in @($group.Found)) {
                         if ($found -and $found -notlike "$($group.Expected)*") { $alternatives += "$found (the standard references $($group.Expected))" }
@@ -1404,6 +1347,53 @@ if ($baseline) {
     }
 }
 
+# ---- toolchain -----------------------------------------------------------------------------
+
+# Either PowerShell satisfies the requirement, so report the newest one available: pwsh when it is
+# installed, Windows PowerShell otherwise. This script is itself running in one of them.
+$powerShellVersion = $tooling.currentPowerShell.version
+foreach ($candidate in @($tooling.pwsh, $tooling.powershell)) {
+    if ($candidate.present -and $candidate.version) {
+        $candidateVersion = ConvertTo-ComparableVersion -Text $candidate.version
+        if ($candidateVersion -and $candidateVersion -gt (ConvertTo-ComparableVersion -Text $powerShellVersion)) {
+            $powerShellVersion = $candidate.version
+        }
+    }
+}
+
+$requirements = @()
+if ($baseline) {
+    foreach ($assertion in @($baseline.assertions | Where-Object { $_.kind -eq 'machine' })) {
+        if ($assertion.tool -eq 'powershell') {
+            $present = $true
+            $version = $powerShellVersion
+        }
+        else {
+            $report = $tooling[$assertion.tool]
+            $present = [bool]($report -and $report.present)
+            $version = if ($report) { $report.version } else { $null }
+        }
+
+        $requirement = [ordered]@{
+            id        = $assertion.id
+            tool      = $assertion.topic
+            tier      = $assertion.tier
+            present   = $present
+            version   = $version
+            minimum   = $assertion.minimum
+            preferred = $assertion.preferred
+            status    = Get-VersionStatus -Present $present -Version $version -Minimum $assertion.minimum -Preferred $assertion.preferred
+            install   = $assertion.install
+        }
+        if ($assertion.tool -eq 'pac') {
+            # pac without an authentication profile cannot generate early-bound classes, create a
+            # feature solution or read the environment, so the profile is part of the requirement.
+            $requirement['authProfile'] = if ($environment.probed) { $environment.hasAuthProfile } else { $null }
+        }
+        $requirements += $requirement
+    }
+}
+
 # ---- proposed values -----------------------------------------------------------------------
 
 function New-Proposal {
@@ -1417,46 +1407,52 @@ function New-Proposal {
     }
 }
 
-$primarySolution = @($solutions | Where-Object { $_.managed -ne $true -and $_.uniqueName }) | Select-Object -First 1
+# Feature solutions are named <type>_<Name> after their branch. They are never the core solution,
+# so they are left out of every core-solution guess below.
+$featureSolutionPattern = '^(feature|fix|chore)_'
+$committedCore = @($solutions | Where-Object { $_.managed -ne $true -and $_.uniqueName -and $_.uniqueName -notmatch $featureSolutionPattern })
+$environmentCore = @($environment['solutions'] | Where-Object { $_.uniqueName -notmatch $featureSolutionPattern -and $_.uniqueName -notin @('Default', 'Active') })
+$featureSolutionsInEnvironment = @($environment['solutions'] | Where-Object { $_.uniqueName -match $featureSolutionPattern } | ForEach-Object { $_.uniqueName })
+$primarySolution = $committedCore | Select-Object -First 1
 $resolved = $environment['resolvedPublisher']
 
-# SolutionName
-$solutionProposal = $null
+# CoreSolution. Optional: 'none' is a valid answer, but only the user can give it.
+$coreCandidates = @($environmentCore | Where-Object { $_.uniqueName -match '(?i)core' })
 if ($primarySolution) {
-    $solutionProposal = New-Proposal -Value $primarySolution.uniqueName -Source "$($primarySolution.manifest) (committed solution manifest)" -Confidence 'high' -Alternatives @($solutions | ForEach-Object { $_.uniqueName })
+    $coreProposal = New-Proposal -Value $primarySolution.uniqueName -Source "$($primarySolution.manifest) (committed solution manifest)" -Confidence 'high' -Alternatives @($committedCore | ForEach-Object { $_.uniqueName })
 }
 elseif ($resolved -and $resolved['solutionUniqueName']) {
-    $solutionProposal = New-Proposal -Value $resolved['solutionUniqueName'] -Source $resolved['source'] -Confidence 'high'
+    $coreProposal = New-Proposal -Value $resolved['solutionUniqueName'] -Source $resolved['source'] -Confidence 'high'
 }
-elseif (@($environment['solutions']).Count -eq 1) {
-    $solutionProposal = New-Proposal -Value $environment['solutions'][0].uniqueName -Source 'pac solution list (the only unmanaged solution in the environment)' -Confidence 'medium'
+elseif ($coreCandidates.Count -eq 1) {
+    $coreProposal = New-Proposal -Value $coreCandidates[0].uniqueName -Source 'pac solution list (the only unmanaged solution whose name contains Core)' -Confidence 'medium' -Alternatives @($environmentCore | ForEach-Object { $_.uniqueName })
 }
-elseif (@($environment['solutions']).Count -gt 1) {
-    $solutionProposal = New-Proposal -Value $null -Source 'pac solution list returned several unmanaged solutions; the user has to choose' -Confidence 'none' -Alternatives @($environment['solutions'] | ForEach-Object { $_.uniqueName })
+elseif ($environmentCore.Count -gt 0) {
+    $coreProposal = New-Proposal -Value $null -Source "pac solution list returned unmanaged solutions, none clearly the core one. Ask which one is the core solution, or 'none'." -Confidence 'none' -Alternatives @($environmentCore | ForEach-Object { $_.uniqueName })
 }
 else {
-    $solutionProposal = New-Proposal -Value $null -Source 'No committed solution and no environment solution list' -Confidence 'none'
+    $coreProposal = New-Proposal -Value $null -Source "No committed solution and no environment solution list. Ask for the core solution unique name, or 'none'." -Confidence 'none'
 }
 
-# Publisher name and prefix
-$publisherNameProposal = New-Proposal -Value $null -Source 'Not derivable: no committed solution manifest and no exported solution' -Confidence 'none'
+# Publisher unique name and prefix
+$publisherUniqueNameProposal = New-Proposal -Value $null -Source 'Not derivable: no committed solution manifest and no exported solution' -Confidence 'none'
 $publisherPrefixProposal = New-Proposal -Value $null -Source 'Not derivable: no committed solution manifest and no exported solution' -Confidence 'none'
 
 if ($primarySolution -and $primarySolution.publisherPrefix) {
-    $publisherNameProposal = New-Proposal -Value $primarySolution.publisherName -Source "$($primarySolution.manifest) (committed solution manifest)" -Confidence 'high' -Alternatives @($solutions | ForEach-Object { $_.publisherName })
+    $publisherUniqueNameProposal = New-Proposal -Value $primarySolution.publisherUniqueName -Source "$($primarySolution.manifest) (committed solution manifest)" -Confidence 'high' -Alternatives @($solutions | ForEach-Object { $_.publisherUniqueName })
     $publisherPrefixProposal = New-Proposal -Value $primarySolution.publisherPrefix -Source "$($primarySolution.manifest) (committed solution manifest)" -Confidence 'high' -Alternatives @($solutions | ForEach-Object { $_.publisherPrefix })
 }
 elseif ($resolved -and $resolved['publisherPrefix']) {
-    $publisherNameProposal = New-Proposal -Value $resolved['publisherName'] -Source $resolved['source'] -Confidence 'high'
+    $publisherUniqueNameProposal = New-Proposal -Value $resolved['publisherUniqueName'] -Source $resolved['source'] -Confidence 'high'
     $publisherPrefixProposal = New-Proposal -Value $resolved['publisherPrefix'] -Source $resolved['source'] -Confidence 'high'
 }
 elseif ($environment['connected']) {
     $hint = 'pac reports no publisher for an environment; re-run with -ResolvePublisherFromSolution <name> to read it out of an existing solution, or ask the user.'
-    $publisherNameProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
+    $publisherUniqueNameProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
     $publisherPrefixProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
 }
 
-# Prefix evidence from existing component names: bshcs_accountform.js, prefix_table, and so on.
+# Prefix evidence from existing component names: nwc_accountform.js, prefix_table, and so on.
 $prefixCandidates = @{}
 foreach ($file in @($files | Where-Object { $_ -match '(?i)(^|/)[a-z][a-z0-9]{1,7}_[a-z0-9]' })) {
     $leaf = [System.IO.Path]::GetFileName($file)
@@ -1550,12 +1546,12 @@ if ($readme) {
 }
 
 $proposedValues = [ordered]@{
-    ProjectName        = $projectNameProposal
-    PublisherName      = $publisherNameProposal
-    PublisherPrefix    = $publisherPrefixProposal
-    SolutionName       = $solutionProposal
-    RootNamespace      = $namespaceProposal
-    ProjectDescription = $descriptionProposal
+    ProjectName         = $projectNameProposal
+    PublisherUniqueName = $publisherUniqueNameProposal
+    PublisherPrefix     = $publisherPrefixProposal
+    CoreSolution        = $coreProposal
+    RootNamespace       = $namespaceProposal
+    ProjectDescription  = $descriptionProposal
 }
 
 $missingValues = @($proposedValues.Keys | Where-Object { -not $proposedValues[$_]['value'] })
@@ -1565,17 +1561,17 @@ $missingValues = @($proposedValues.Keys | Where-Object { -not $proposedValues[$_
 $deviating = @($assessments | Where-Object { $_.status -eq 'deviates' })
 
 $recommendation = [ordered]@{
-    mode                = if ($classification -eq 'greenfield') { 'initialise' } else { 'adopt' }
-    scaffoldArguments   = @()
-    askUserFor          = $missingValues
-    deviationCount      = $deviating.Count
-    blockers            = @()
+    mode              = if ($classification -eq 'greenfield') { 'initialise' } else { 'adopt' }
+    scaffoldArguments = @()
+    askUserFor        = $missingValues
+    deviationCount    = $deviating.Count
+    warnings          = @()
 }
 
 if ($classification -eq 'greenfield') {
     if (@($present).Count -gt 0) {
         $recommendation['scaffoldArguments'] = @('-SkipExisting')
-        $recommendation['blockers'] += "The folder is otherwise empty but already contains: $(@($present) -join ', '). Use -SkipExisting, or -Force to overwrite."
+        $recommendation['warnings'] += "The folder is otherwise empty but already contains: $(@($present) -join ', '). Use -SkipExisting, or -Force to overwrite."
     }
 }
 else {
@@ -1588,18 +1584,18 @@ else {
     # from the webresources.buildProject assessment above, and only add it if the user asks.
     if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout') {
         $recommendation['scaffoldArguments'] += '-SkipWebResourcesProject'
-        $recommendation['blockers'] += 'This is an existing project: Dataverse.sln and the WebResources build project (.esproj + Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment during reconciliation and add it explicitly only if the user asks.'
+        $recommendation['warnings'] += 'This is an existing project: Dataverse.sln and the WebResources build project (.esproj + Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add it only if the user asks.'
     }
     if ($repository.agentDocs.claudeMd) {
-        $recommendation['blockers'] += 'CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file by hand rather than overwriting instructions the project already relies on.'
+        $recommendation['warnings'] += 'CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file rather than overwriting instructions the project already relies on.'
     }
     if (@($repository.harness.presentFiles).Count -gt 0 -and @($repository.harness.missingFiles).Count -gt 0) {
-        $recommendation['blockers'] += 'The harness is partially installed. Only the missing files will be written; compare the present ones against the templates before assuming they are current.'
+        $recommendation['warnings'] += 'The harness is partially installed. Only the missing files will be written; compare the present ones against the templates before assuming they are current.'
     }
 }
 
 if ($environment['treatAsProduction'] -and $environment['connected']) {
-    $recommendation['blockers'] += "The connected environment ($($environment.org.friendlyName)) does not look like a DEV environment (name signal: $($environment.nameSignal)). The standards permit write operations in DEV only: verify before running anything that writes."
+    $recommendation['warnings'] += "The connected environment ($($environment.org.friendlyName)) does not look like a DEV environment (name signal: $($environment.nameSignal)). The standards permit write operations in DEV only: confirm it is DEV before the agent writes anything."
 }
 
 # ---- output --------------------------------------------------------------------------------
@@ -1609,13 +1605,17 @@ $report = [ordered]@{
     generatedAt    = (Get-Date).ToString('o')
     pluginRoot     = $pluginRoot
     tooling        = $tooling
-    agentTooling   = $agentTooling
+    toolchain      = [ordered]@{
+        requirements = $requirements
+        recommended  = $recommendedTools
+    }
     repository     = $repository
     dotnet         = $dotnet
     node           = $node
     solutions      = $solutions
     pcfControls    = $pcfControls
     environment    = $environment
+    featureSolutionsInEnvironment = $featureSolutionsInEnvironment
     standards      = [ordered]@{
         baselineFound = [bool]$baseline
         assessments   = $assessments

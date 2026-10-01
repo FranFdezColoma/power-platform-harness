@@ -30,15 +30,12 @@ generated/
 *.tsbuildinfo
 coverage/
 
-# Playwright (optional PCF/E2E tooling)
+# Playwright (recommended browser tooling)
 test-results/
 playwright-report/
 blob-report/
 .playwright/
 .playwright-cli/
-
-# Dataverse solution artifacts: only the unpacked solution is committed
-src/Solutions/**/*.zip
 
 # Secrets and environment configuration: never committed
 .env

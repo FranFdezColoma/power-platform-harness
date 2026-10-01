@@ -4,14 +4,15 @@ Rules that apply to every change in this repository, whatever the technology.
 
 ## Before starting a unit of work
 
-Every feature, fix or chore is developed on its own branch and, when it touches Dataverse components, in its own feature solution named after that branch. So before writing code or touching a component — including at the start of a fresh session — ask the user whether the work goes on the current branch or on a new one, and wait for the answer. `docs/development/solutions-alm.md` holds the naming rules and the commands; follow them rather than improvising.
+Every feature, fix or chore is developed on its own branch and, when it touches Dataverse components, in its own feature solution named after that branch. So before the first change of a unit of work, ask the user whether it goes on the current branch or on a new one, and wait for the answer. `docs/development/solutions.md` holds the naming rules and the commands; follow them rather than improvising.
 
 ## How to use this file
 
 - Read this file before any change. Then read the standards file for each technology the change touches — only those, not all of them.
 - A technology file may make a rule here more specific. It MUST NOT contradict it. On a genuine conflict, this file wins and the conflict is reported.
 - If the change touches a technology with no standards file, apply this file alone and state that gap explicitly in the final report.
-- Project identity: project `{{project_name}}`, publisher `{{publisher_name}}` with customization prefix `{{publisher_prefix}}`, core unmanaged solution `{{solution_name}}` in DEV, root .NET namespace `{{root_namespace}}`.
+- Project identity: project `{{project_name}}`, publisher `{{publisher_unique_name}}` with customization prefix `{{publisher_prefix}}`, core solution `{{core_solution}}` in DEV (`none` when the project has none), root .NET namespace `{{root_namespace}}`.
+- Only when a tool a task needs is missing or fails, read `docs/agents/toolchain.md` for what to install. Never assume a tool is present or absent: check when the task needs it.
 
 ## Design principles
 
@@ -19,6 +20,11 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Do not introduce abstractions until there is a demonstrated need. Two call sites are not a need; three divergent ones might be.
 - Change only what the task requires. No opportunistic refactors, renames, formatting sweeps or dependency bumps riding along with a functional change: they hide the real diff from the reviewer.
 - Never introduce a new technology, framework, library, architectural pattern, testing framework or project convention when an equivalent project standard already exists.
+- Choose the technology by what the requirement needs from the platform:
+  - Rejecting an operation, or keeping data transactionally consistent: a plugin. A cloud flow runs after the commit and cannot prevent anything.
+  - Interface behaviour and immediate user feedback: a JavaScript web resource or a PCF control.
+  - Asynchronous work, integrations, notifications, approvals and scheduled work: a cloud flow.
+  - Where more than one would genuinely work, prefer the one whose failure mode is cheaper to live with.
 - When nothing here decides it: check the existing codebase, then this repository's docs and skills, then relevant MCPs and official Microsoft documentation. Prefer the established project pattern over a generic best practice.
 - Record a decision in `docs/adr/` before implementing it whenever it affects architecture or project-wide conventions — including one resolved through the fallback above.
 
@@ -66,29 +72,27 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Cover expected behaviour, the relevant edge cases, and the failure paths.
 - Tests are independent of execution order and of state left behind by another test.
 - A change is incomplete while a required test is missing or failing.
-- Some artifacts cannot be unit tested — flows, schema, security, solution configuration, etc. They are not exempt from proof: see Verification & reporting.
+- Write the test first where you can: it is the recommended practice, not a condition of done.
+- Testing in this repository means unit tests for code: plugins, Custom APIs, web resources and PCF controls. Low-code components — flows, forms, views, schema, security, solution configuration — are outside its scope.
 
-## Verification & reporting
+## Working against Dataverse
 
-- Never claim a result you have not observed. "Done", "works", "passes" and "deployed" require an executed command, a tool response or a real run.
-- Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Use the Dataverse MCP or `pac`.
+- Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Use the Dataverse MCP server or `pac`.
 - Name the environment before any operation against it (`pac org who`). Treat any environment you have not verified as production.
-- Write operations are permitted in DEV only. Irreversible operations — deleting a table, column, relationship or record, or changing the data type of a populated column — are prepared by the agent and executed by a human.
+- Write operations are permitted in DEV only, with `pac` or the Dataverse MCP server, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
+
+## Reporting
+
 - Report what you could not run, and why, alongside what you did run. A failing test is reported with its output, never summarised as an obstacle.
-- Evidence required for changes that have no automated tests:
-  - Any declarative change: the unpacked solution diff committed with the change, and `pac solution check` with no high-severity issues.
-  - Cloud flows: at least one real run in DEV per path — success and failure — with the run id recorded in the issue.
-  - Schema: the resulting metadata read back from the environment, never asserted from memory.
 
 ## Definition of Done
 
 Compiling is not done. A task is complete only when all of the following hold:
 
 - The implementation matches the spec and every applicable standards file.
-- Tests were written first and pass (TDD); affected projects build with no errors and no new warnings; linting and static analysis are clean.
-- The diff was reviewed against spec and standards — `/implement` drives this via `/tdd` and `/code-review`; outside that flow, do the equivalent by hand.
+- The unit tests the change requires exist and pass; affected projects build with no errors and no new warnings; linting and static analysis are clean.
+- The diff was reviewed against the spec and the standards.
 - No secrets, credentials or regulated data are hardcoded, logged or committed.
-- For declarative changes: the evidence listed under Verification & reporting exists, `src/Solutions/{{solution_name}}/` is in sync with the environment, and every component the change touched is in this branch's feature solution.
 
 ## Git
 
@@ -96,7 +100,7 @@ Compiling is not done. A task is complete only when all of the following hold:
 - Commit messages describe the change and its motivation, not just the action (`fix`, `update` alone are not enough).
 - Prefer `gh` for PR creation, review and inspection over the web UI.
 - Branch naming: `<type>/<short-description>` (e.g. `fix/`, `feature/`, `chore/`).
-- One unit of work, one branch, one feature solution. Before starting anything, ask whether the work goes on the current branch or a new one, and derive the feature solution name from the branch: `docs/development/solutions-alm.md` owns that flow and its commands.
+- One unit of work, one branch, one feature solution. Before starting anything, ask whether the work goes on the current branch or a new one, and derive the feature solution name from the branch: `docs/development/solutions.md` owns that flow and its commands.
 
 ## Standards index
 
@@ -109,7 +113,5 @@ Read the file for each technology the change touches, before writing.
 | C# Dataverse plugins | `docs/development/csharp-plugins.md` | Ready |
 | PCF controls | `docs/development/pcf.md` | Ready |
 | Custom APIs | `docs/development/custom-apis.md` | Ready |
-| Power Automate cloud flows | `docs/development/power-automate.md` | Ready |
 | Dataverse schema | `docs/development/dataverse-schema.md` | Ready |
-| Solutions & ALM | `docs/development/solutions-alm.md` | Ready |
-| Model-driven app configuration | `docs/development/model-driven-apps.md` | Pending — file does not exist yet |
+| Solutions and DEV environment | `docs/development/solutions.md` | Ready |
