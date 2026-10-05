@@ -8,6 +8,10 @@ Read `docs/agents/development-standards.md` first, then `docs/development/csharp
 - Do not use one to wrap what the Web API already offers. Retrieving, creating and updating records need no custom message.
 - A Custom API is a public contract. Once callers exist its shape cannot change freely, so the decision to add one is not reversible in practice.
 
+## Project
+
+- Each Custom API implementation is its own project: `src/Dataverse/CustomAPIs/{{root_namespace}}.<ApiName>/`, with its test project `{{root_namespace}}.<ApiName>.Tests` next to it, both in the `CustomAPIs` solution folder of `Dataverse.sln`. It references `{{root_namespace}}.Common` like any plugin project.
+
 ## Definition
 
 - Unique name: `{{publisher_prefix}}_<VerbNoun>`, e.g. `{{publisher_prefix}}_CalculateWorkOrderPrice`. Name the operation, never the caller.
