@@ -27,6 +27,8 @@ packages/
 node_modules/
 out/
 generated/
+# Early-bound classes are committed: the plugin projects do not build without them.
+!src/Dataverse/Plugins/*.Common/Generated/
 *.tsbuildinfo
 coverage/
 

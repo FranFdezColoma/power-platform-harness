@@ -39,7 +39,6 @@ Then, in the folder you want to set up:
 ```
 CLAUDE.md                                # points the agent at the standards
 .gitignore                               # .NET, PCF and secrets hygiene
-Dataverse.sln                            # references the WebResources project
 docs/
 ├── agents/
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
@@ -53,8 +52,13 @@ docs/
 │   ├── dataverse-schema.md              # tables, columns, relationships
 │   └── solutions.md                     # feature solution per branch, DEV rules
 └── adr/                                 # architecture decision records
-src/{Plugins,CustomAPIs,WebResources}/
-tests/{Plugins,CustomAPIs}/
+src/Dataverse/
+├── Dataverse.sln                        # Plugins, CustomAPIs and WebResources solution folders
+├── Plugins/
+│   └── <Namespace>.Common/              # PluginBase.cs, early-bound classes, shared helpers
+├── CustomAPIs/
+└── WebResources/
+    └── <Project>.WebResources/          # the .esproj + Vitest/ESLint project
 ```
 
 ## How it decides what to do
@@ -77,7 +81,7 @@ and answers:
 | PowerShell | required | 5.1 | 7 |
 | git | required | any | latest |
 | .NET SDK | required | 8 | 10 |
-| Node.js | required | 20 | 24 |
+| Node.js | required | 22.13 | 24 |
 | Power Platform CLI (`pac`), authenticated against DEV | required | any | latest |
 | Dataverse MCP server | recommended | | |
 | `playwright-cli` or the Playwright MCP server | recommended | | |
@@ -101,7 +105,7 @@ plugins.targetFramework     deviates   standard net462        project net472
 plugins.strongNaming        deviates   standard unsigned      project strong-named
 plugins.test.xunit          deviates   standard xunit 2.9.3   project 2.4.2
 pcf.platformLibrary.react   deviates   standard 16.14.0       project 18.2.0
-javascript.lint             deviates   standard eslint 9 flat project eslint 8 (.eslintrc)
+javascript.lint             deviates   standard eslint 10 flat project eslint 8 (.eslintrc)
 ```
 
 The project's answer is the one that stands. The generated standards docs are adjusted to state
@@ -172,9 +176,10 @@ empty:
 | `-SkipExisting` | Write what is missing, leave every existing file untouched. Idempotent |
 | `-Force` | Overwrite. Rejected together with `-SkipExisting` |
 
-`-SkipLayout` suppresses the `src/`, `tests/` and `docs/adr/` folders, for a project that already
-has its own layout. `-SkipWebResourcesProject` leaves out `Dataverse.sln` and the WebResources
-project. `-Json` emits a parseable summary of what was created, skipped and overwritten.
+`-SkipLayout` suppresses the `src/Dataverse/` and `docs/adr/` folders, for a project that already
+has its own layout. `-SkipCodeProjects` leaves out the projects under `src/Dataverse/`:
+`Dataverse.sln`, the Common library and the WebResources project. `-Json` emits a parseable
+summary of what was created, skipped and overwritten.
 
 ## Contributing
 

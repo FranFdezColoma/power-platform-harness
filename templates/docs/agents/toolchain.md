@@ -11,7 +11,7 @@ Tool availability belongs to the machine, not to the repository. Check what is a
 | PowerShell | 5.1 | 7 | The harness scripts; `pac` and PCF tooling are tested against 7 |
 | git | any | latest | One branch per unit of work |
 | .NET SDK | 8 | 10 | Building and testing plugins and Custom APIs; installing `pac` |
-| Node.js | 20 | 24 | Testing and linting web resources and PCF controls |
+| Node.js | 22.13 | 24 | Testing and linting web resources and PCF controls |
 | Power Platform CLI (`pac`) | any | latest | Code generation, solution operations, environment access |
 
 Install:

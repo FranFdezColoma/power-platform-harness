@@ -898,7 +898,7 @@ $repository = [ordered]@{
     }
 }
 
-foreach ($expected in @('src/Plugins', 'src/CustomAPIs', 'src/WebResources', 'tests/Plugins', 'tests/CustomAPIs', 'docs/adr')) {
+foreach ($expected in @('src/Dataverse/Plugins', 'src/Dataverse/CustomAPIs', 'src/Dataverse/WebResources', 'docs/adr')) {
     $repository.layout.expected[$expected] = ($inventory.Directories -contains $expected)
 }
 
@@ -1286,7 +1286,7 @@ if ($baseline) {
                     $legacy = @($node.eslintLegacy).Count -gt 0
                     $major = if ($eslint) { [regex]::Match($eslint, '(\d+)').Groups[1].Value } else { $null }
                     if (-not $eslint) { $assessments += New-Assessment -Assertion $assertion -Status 'deviates' -Detected $null -Detail 'ESLint is not a dependency of any package.json.' -Evidence @($packages | ForEach-Object { $_.path }) }
-                    elseif ($major -eq '9' -and $flat -and -not $legacy) { $assessments += New-Assessment -Assertion $assertion -Status 'match' -Detected "eslint $eslint (flat config)" -Evidence $node.eslintFlat }
+                    elseif ($major -eq '10' -and $flat -and -not $legacy) { $assessments += New-Assessment -Assertion $assertion -Status 'match' -Detected "eslint $eslint (flat config)" -Evidence $node.eslintFlat }
                     else { $assessments += New-Assessment -Assertion $assertion -Status 'deviates' -Detected "eslint $eslint$(if ($legacy) { ' (.eslintrc)' } elseif ($flat) { ' (flat config)' } else { ' (no config file found)' })" -Evidence (@($node.eslintLegacy) + @($node.eslintFlat)) }
                 }
             }
@@ -1327,9 +1327,9 @@ if ($baseline) {
                 $missingFolders = @($repository.layout.expected.Keys | Where-Object { -not $repository.layout.expected[$_] })
                 $alternatives = @()
                 foreach ($group in @(
-                    @{ Expected = 'src/Plugins'; Found = $repository.layout.actual.pluginFolders },
-                    @{ Expected = 'src/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
-                    @{ Expected = 'src/WebResources'; Found = $repository.layout.actual.webResourceFolders }
+                    @{ Expected = 'src/Dataverse/Plugins'; Found = $repository.layout.actual.pluginFolders },
+                    @{ Expected = 'src/Dataverse/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
+                    @{ Expected = 'src/Dataverse/WebResources'; Found = $repository.layout.actual.webResourceFolders }
                 )) {
                     foreach ($found in @($group.Found)) {
                         if ($found -and $found -notlike "$($group.Expected)*") { $alternatives += "$found (the standard references $($group.Expected))" }
@@ -1579,12 +1579,13 @@ else {
     if (@($repository.layout.actual.solutionFolders).Count -gt 0 -or @($repository.layout.actual.pluginFolders).Count -gt 0) {
         $recommendation['scaffoldArguments'] += '-SkipLayout'
     }
-    # Dataverse.sln and the WebResources build project introduce a test runner (Vitest). Never
-    # write that unprompted into an established project: offer it during reconciliation instead,
-    # from the webresources.buildProject assessment above, and only add it if the user asks.
+    # The code projects under src/Dataverse/ (Dataverse.sln, the Common library, the WebResources
+    # build project) introduce a target framework and a test runner (Vitest). Never write them
+    # unprompted into an established project: offer them during reconciliation instead, from the
+    # webresources.buildProject assessment above, and only add them if the user asks.
     if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout') {
-        $recommendation['scaffoldArguments'] += '-SkipWebResourcesProject'
-        $recommendation['warnings'] += 'This is an existing project: Dataverse.sln and the WebResources build project (.esproj + Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add it only if the user asks.'
+        $recommendation['scaffoldArguments'] += '-SkipCodeProjects'
+        $recommendation['warnings'] += 'This is an existing project: the code projects under src/Dataverse/ (Dataverse.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
     }
     if ($repository.agentDocs.claudeMd) {
         $recommendation['warnings'] += 'CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file rather than overwriting instructions the project already relies on.'

@@ -4,16 +4,17 @@
 
 .DESCRIPTION
     Copies every file under templates/ into -TargetPath, replacing the template tokens with the
-    values supplied as parameters, and creates the source, test and ADR folders the standards
-    expect. It writes files only: nothing here talks to Dataverse.
+    values supplied as parameters, and creates the source and ADR folders the standards expect.
+    It writes files only: nothing here talks to Dataverse.
 
     The script never overwrites an existing file unless -Force is supplied: it collects every
     collision first and aborts without touching the working tree. Use -DryRun to print the
     resulting tree without writing anything.
 
-    Also creates Dataverse.sln and the WebResources build project (an SDK-style .esproj with
-    Vitest + ESLint tooling) under src/WebResources/, unless -SkipLayout or
-    -SkipWebResourcesProject is supplied.
+    Also creates the code projects under src/Dataverse/: Dataverse.sln, the shared
+    <RootNamespace>.Common plugin library (PluginBase.cs) and the WebResources build project (an
+    SDK-style .esproj with Vitest + ESLint tooling), unless -SkipLayout or -SkipCodeProjects is
+    supplied.
 
     Three ways to handle a folder that is not empty:
       - default:      abort and list the collisions, writing nothing.
@@ -73,14 +74,16 @@ param(
     # instead of aborting on the first collision. An existing CLAUDE.md is the usual reason.
     [switch]$SkipExisting,
 
-    # Do not create the src/, tests/ and docs/adr/ folders. An existing project already has a
+    # Do not create the src/Dataverse/ and docs/adr/ folders. An existing project already has a
     # layout; adding a second one next to it leaves two conventions in one repository.
     [switch]$SkipLayout,
 
-    # Do not create Dataverse.sln or the WebResources build project (.esproj + package.json +
-    # Vitest/ESLint config). Use for an existing project: it introduces a test runner, and the
-    # harness must never impose one a project has not already chosen. -SkipLayout implies this.
-    [switch]$SkipWebResourcesProject,
+    # Do not create the code projects under src/Dataverse/: Dataverse.sln, the shared Common plugin
+    # library and the WebResources build project (.esproj + package.json + Vitest/ESLint config).
+    # Use for an existing project: they introduce a target framework and a test runner, and the
+    # harness must never impose either on a project that has not already chosen them. -SkipLayout
+    # implies this.
+    [switch]$SkipCodeProjects,
 
     # Emit a JSON summary instead of the human-readable report, for callers that parse the result.
     [switch]$Json
@@ -101,20 +104,18 @@ if ($Force -and $SkipExisting) {
     Stop-WithError '-Force and -SkipExisting ask for opposite things. Choose one: overwrite the existing files, or keep them.'
 }
 
-# Folders the standards expect to exist. Git does not track empty folders, so each one gets a
-# .gitkeep.
+# Folders the standards expect to exist. Git does not track empty folders, so each one that no
+# template file lands in gets a .gitkeep.
 $keepDirectories = @(
-    'src/Plugins'
-    'src/CustomAPIs'
-    'src/WebResources'
-    'tests/Plugins'
-    'tests/CustomAPIs'
+    'src/Dataverse/Plugins'
+    'src/Dataverse/CustomAPIs'
+    'src/Dataverse/WebResources'
     'docs/adr'
 )
 
 # The WebResources build project's own source folders. Empty until the first web resource is
 # added, so each one needs a .gitkeep like $keepDirectories above.
-$webResourcesProjectFolder = "src/WebResources/$ProjectName.WebResources"
+$webResourcesProjectFolder = "src/Dataverse/WebResources/$ProjectName.WebResources"
 $webResourcesKeepDirectories = @(
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/js"
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/html"
@@ -210,16 +211,16 @@ if (-not $plannedFiles) {
     Stop-WithError "No template files found under $templatesRoot."
 }
 
-# The WebResources build project (Dataverse.sln plus everything under src/WebResources/) is
-# planned separately: -SkipLayout suppresses it because it assumes the standard src/WebResources
-# path, and -SkipWebResourcesProject suppresses it on its own, for an existing project that has
-# not chosen this tooling.
-$webResourcesProjectPattern = '^(Dataverse\.sln|src/WebResources/)'
-$webResourcesProjectFiles = @($plannedFiles | Where-Object { $_.Relative -match $webResourcesProjectPattern })
-$plannedFiles = @($plannedFiles | Where-Object { $_.Relative -notmatch $webResourcesProjectPattern })
+# The code projects (everything under src/Dataverse/: the solution, the Common library and the
+# WebResources project) are planned separately: -SkipLayout suppresses them because they assume the
+# standard src/Dataverse layout, and -SkipCodeProjects suppresses them on its own, for an existing
+# project that has not chosen this framework and tooling.
+$codeProjectsPattern = '^src/Dataverse/'
+$codeProjectFiles = @($plannedFiles | Where-Object { $_.Relative -match $codeProjectsPattern })
+$plannedFiles = @($plannedFiles | Where-Object { $_.Relative -notmatch $codeProjectsPattern })
 
-if (-not $SkipLayout -and -not $SkipWebResourcesProject) {
-    $plannedFiles = @($plannedFiles) + @($webResourcesProjectFiles)
+if (-not $SkipLayout -and -not $SkipCodeProjects) {
+    $plannedFiles = @($plannedFiles) + @($codeProjectFiles)
 }
 
 $plannedKeeps = @()
@@ -231,7 +232,7 @@ if (-not $SkipLayout) {
         }
     }
 
-    if (-not $SkipWebResourcesProject) {
+    if (-not $SkipCodeProjects) {
         $plannedKeeps = @($plannedKeeps) + @($webResourcesKeepDirectories | ForEach-Object {
             [pscustomobject]@{
                 Relative    = "$_/.gitkeep"
@@ -239,6 +240,13 @@ if (-not $SkipLayout) {
             }
         })
     }
+
+    # A folder a template file already lands in is not empty: it needs no .gitkeep.
+    $plannedKeeps = @($plannedKeeps | Where-Object {
+        $folder = $_.Relative.Substring(0, $_.Relative.Length - '/.gitkeep'.Length)
+        $prefix = "$folder/"
+        -not @($plannedFiles | Where-Object { $_.Relative.StartsWith($prefix) }).Count
+    })
 }
 
 $allPlanned = @($plannedFiles) + @($plannedKeeps)
@@ -290,7 +298,7 @@ function Write-Report {
                 force                   = [bool]$Force
                 skipExisting            = [bool]$SkipExisting
                 skipLayout              = [bool]$SkipLayout
-                skipWebResourcesProject = [bool]$SkipWebResourcesProject
+                skipCodeProjects        = [bool]$SkipCodeProjects
             }
             planned     = @($Planned | Sort-Object)
             created     = @($Created | Sort-Object)

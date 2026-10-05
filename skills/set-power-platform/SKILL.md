@@ -9,7 +9,7 @@ allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discove
 
 Two jobs, decided by what is already in the folder:
 
-- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, `Dataverse.sln` and the WebResources build project, and the `src/`, `tests/`, `docs/adr/` layout.
+- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/Dataverse/` (`Dataverse.sln`, the shared `<RootNamespace>.Common` plugin library and the WebResources build project), and the `src/Dataverse/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
 - **Existing project** — adopt the harness into it: add only what is missing, keep what the project already has, and adapt the standards to the stack the project actually uses. Never set a version, framework or layout the project does not use.
 
 Two bundled scripts do the work. `discover.ps1` reads; `scaffold.ps1` writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
@@ -108,7 +108,7 @@ Skip this step for a new project.
 
 These differences are not defects in the project, and the harness never retargets a framework, changes a test runner, upgrades a library or moves a folder. The project's version is the rule. After scaffolding (step 7), each deviation is reconciled in the generated docs.
 
-When `layout.folders` deviates, pass `-SkipLayout`: creating `src/Plugins/` next to an existing `source/plugins/` leaves two conventions in one repository. Say which one the project uses.
+When `layout.folders` deviates, pass `-SkipLayout`: creating `src/Dataverse/Plugins/` next to an existing `source/plugins/` leaves two conventions in one repository. Say which one the project uses.
 
 ## 6. Confirm once, then write
 
@@ -126,7 +126,7 @@ Flag rules:
 
 - `-SkipExisting` — existing project, or a folder that already holds some harness files. Writes what is missing, reports what it left alone.
 - `-SkipLayout` — the project already has its own layout.
-- `-SkipWebResourcesProject` — existing project. `Dataverse.sln` and the WebResources build project introduce a test runner (Vitest); never write that unprompted into an established repository. `recommendation.scaffoldArguments` already includes it when needed. Omit it only when the user explicitly asks for the project, having seen the `webresources.buildProject` assessment.
+- `-SkipCodeProjects` — existing project. The code projects under `src/Dataverse/` (`Dataverse.sln`, the Common plugin library, the WebResources build project) introduce a target framework and a test runner (Vitest); never write them unprompted into an established repository. `recommendation.scaffoldArguments` already includes it when needed. Omit it only when the user explicitly asks for them, having seen the `webresources.buildProject` assessment.
 - `-Force` — only when the user has explicitly accepted overwriting the exact files listed. Never combined with `-SkipExisting`; the script rejects that.
 
 Report the warnings in `recommendation.warnings` alongside the dry run. If the script fails, report its output verbatim. Do not hand-edit generated files to work around it.

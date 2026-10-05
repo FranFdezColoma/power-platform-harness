@@ -53,10 +53,13 @@ Offer both, and let the user choose:
 
 ```bash
 pac solution init --publisher-name {{publisher_unique_name}} --publisher-prefix {{publisher_prefix}} --outputDirectory <temp>/<type>_<Name>
+# pac solution init writes version 1.0; every solution starts at 1.0.0.0
+pwsh -NoProfile -Command "\$f = '<temp>/<type>_<Name>/src/Other/Solution.xml'; (Get-Content -Raw \$f) -replace '<Version>1\.0</Version>', '<Version>1.0.0.0</Version>' | Set-Content -NoNewline \$f"
 pac solution pack --folder <temp>/<type>_<Name>/src --zipfile <temp>/<type>_<Name>.zip --packagetype Unmanaged
 pac solution import --path <temp>/<type>_<Name>.zip --publish-changes
 ```
 
+- Every solution is created at version `1.0.0.0` (`major.minor.build.revision`). `pac solution init` writes `1.0` and `pac solution version` only changes build and revision, so set the version in `Solution.xml` before packing, as above. Check that it reads `<Version>1.0.0.0</Version>` before importing.
 - With the Dataverse MCP server and no working `pac` authentication, create the `solution` record through the server instead: same unique name, the publisher above, version `1.0.0.0`.
 - Creating a solution is a human decision. Show the commands and the resolved names, ask, and only then run them. Never as a side effect of another task.
 - Report the created solution and verify that it exists: `pac solution list`, or the same query through the MCP server.
