@@ -6,7 +6,7 @@ the project that wraps them for the IDE and the test/lint tooling.
 
 ## Stack
 
-- The WebResources folder is an SDK-style project: `src/WebResources/{{publisher_prefix}}.WebResources/{{publisher_prefix}}.WebResources.esproj`, using `Sdk="Microsoft.VisualStudio.JavaScript.Sdk"` with no pinned version — the resolver picks the release installed with Visual Studio, so the standard is the SDK identity, not a build number.
+- The WebResources folder is an SDK-style project: `src/WebResources/{{project_name}}.WebResources/{{project_name}}.WebResources.esproj`, using `Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863"`. The version is pinned in the `Sdk` attribute: the SDK is distributed through NuGet, not installed with Visual Studio or the .NET SDK, so MSBuild cannot resolve it without a version and Visual Studio leaves the project unloaded. A project that already pins a different version keeps it; upgrading is its own task.
 - `Dataverse.sln`, at the repository root, references this project. Add further Dataverse projects (plugins, custom APIs) to the same solution as they are created; do not scaffold placeholder projects for work that does not exist yet.
 - Tooling is test and lint only: Vitest + ESLint, per `docs/development/javascript.md`. No bundler, no TypeScript, no UI framework — the `.esproj` is a Visual Studio convenience for editing and testing the plain JavaScript web resources described there, not a build step. Introducing one is a separate, deliberate decision, not a side effect of adopting this standard.
 

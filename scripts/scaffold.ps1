@@ -114,7 +114,7 @@ $keepDirectories = @(
 
 # The WebResources build project's own source folders. Empty until the first web resource is
 # added, so each one needs a .gitkeep like $keepDirectories above.
-$webResourcesProjectFolder = "src/WebResources/$PublisherPrefix.WebResources"
+$webResourcesProjectFolder = "src/WebResources/$ProjectName.WebResources"
 $webResourcesKeepDirectories = @(
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/js"
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/html"
@@ -193,7 +193,7 @@ $plannedFiles = Get-ChildItem -LiteralPath $templatesRoot -Recurse -File -Force 
         $templateRelative = ($_.FullName.Substring($templatesRoot.Length).TrimStart('\', '/')) -replace '\\', '/'
 
         # A template's own folder or file name can carry a token too (the WebResources project is
-        # named after the publisher prefix), so resolve it the same way file content is resolved.
+        # named after the project), so resolve it the same way file content is resolved.
         $destinationRelative = $templateRelative
         foreach ($token in $tokens.Keys) {
             $destinationRelative = $destinationRelative.Replace($token, $tokens[$token])

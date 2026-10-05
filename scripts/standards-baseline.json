@@ -230,11 +230,11 @@
       "kind": "layout",
       "topic": "WebResources build/test project",
       "standard": "esproj",
-      "standardLabel": "SDK-style .esproj project (Microsoft.VisualStudio.JavaScript.Sdk) with Vitest + ESLint tooling, under src/WebResources/<prefix>.WebResources/",
+      "standardLabel": "SDK-style .esproj project (Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863, version pinned) with Vitest + ESLint tooling, under src/WebResources/<ProjectName>.WebResources/",
       "assertedIn": "templates/docs/development/webresources-project.md",
       "targetFile": "docs/development/webresources-project.md",
-      "assertedText": "The WebResources folder is an SDK-style project",
-      "guidance": "A repository that already edits web resources without this project is not broken. Never retrofit an existing, differently structured WebResources setup: offer this during reconciliation instead of writing it silently."
+      "assertedText": "Sdk=\"Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863\"",
+      "guidance": "A repository that already edits web resources without this project is not broken. Never retrofit an existing, differently structured WebResources setup: offer this during reconciliation instead of writing it silently. An existing .esproj that pins a different SDK version keeps its version; only an .esproj with no version at all fails to load and needs one."
     },
     {
       "id": "layout.folders",

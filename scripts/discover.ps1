@@ -1365,12 +1365,12 @@ $requirements = @()
 if ($baseline) {
     foreach ($assertion in @($baseline.assertions | Where-Object { $_.kind -eq 'machine' })) {
         if ($assertion.tool -eq 'powershell') {
-            $present = $true
+            $toolPresent = $true
             $version = $powerShellVersion
         }
         else {
             $report = $tooling[$assertion.tool]
-            $present = [bool]($report -and $report.present)
+            $toolPresent = [bool]($report -and $report.present)
             $version = if ($report) { $report.version } else { $null }
         }
 
@@ -1378,11 +1378,11 @@ if ($baseline) {
             id        = $assertion.id
             tool      = $assertion.topic
             tier      = $assertion.tier
-            present   = $present
+            present   = $toolPresent
             version   = $version
             minimum   = $assertion.minimum
             preferred = $assertion.preferred
-            status    = Get-VersionStatus -Present $present -Version $version -Minimum $assertion.minimum -Preferred $assertion.preferred
+            status    = Get-VersionStatus -Present $toolPresent -Version $version -Minimum $assertion.minimum -Preferred $assertion.preferred
             install   = $assertion.install
         }
         if ($assertion.tool -eq 'pac') {
