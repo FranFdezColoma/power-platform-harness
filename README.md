@@ -118,7 +118,7 @@ The skill resolves these across every generated file, so the result carries no p
 
 | Value | What it is | Example |
 | --- | --- | --- |
-| `ProjectName` | Short project name, used in .NET namespaces and JavaScript form API objects | `Northwind` |
+| `ProjectName` | Short project name, used for the JavaScript form API namespace and the WebResources project | `Northwind` |
 | `PublisherUniqueName` | Dataverse publisher unique name, used to create feature solutions | `NorthwindConsulting` |
 | `PublisherPrefix` | Dataverse customization prefix, carried by every component | `nwc` |
 | `CoreSolution` | Unique name of the core unmanaged solution in DEV, or `none` (optional) | `NorthwindCore` |
