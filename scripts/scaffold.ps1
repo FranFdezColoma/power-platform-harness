@@ -190,9 +190,15 @@ $tokens = [ordered]@{
     '{{project_description}}'   = $ProjectDescription
 }
 
+# Build and restore output is never template content. Opening or building a template project in
+# an IDE regenerates bin/ and obj/ inside templates/, and git ignores them, so only this filter
+# keeps them (machine-specific paths and caches included) out of a scaffolded repository.
+$buildOutputPattern = '(^|/)(bin|obj|node_modules)/'
+
 $plannedFiles = Get-ChildItem -LiteralPath $templatesRoot -Recurse -File -Force |
     ForEach-Object {
         $templateRelative = ($_.FullName.Substring($templatesRoot.Length).TrimStart('\', '/')) -replace '\\', '/'
+        if ($templateRelative -match $buildOutputPattern) { return }
 
         # A template's own folder or file name can carry a token too (the WebResources project is
         # named after the project), so resolve it the same way file content is resolved.
