@@ -130,8 +130,17 @@ function ConvertTo-ArgumentString {
 
     if (-not $Arguments) { return '' }
 
+    # CommandLineToArgvW rules: backslashes are literal unless they precede a quote, so the run of
+    # backslashes before an embedded quote, and before the closing quote, has to be doubled.
+    # Otherwise "C:\My Repo\" ends in \" and the closing quote is read as part of the argument.
     $quoted = foreach ($argument in $Arguments) {
-        if ($argument -match '[\s"]') { '"' + ($argument -replace '"', '\"') + '"' } else { $argument }
+        if ($argument -eq '') { '""' }
+        elseif ($argument -match '[\s"]') {
+            $escaped = [regex]::Replace($argument, '(\\*)"', { param($m) ($m.Groups[1].Value * 2) + '\"' })
+            $escaped = [regex]::Replace($escaped, '(\\+)$', { param($m) $m.Groups[1].Value * 2 })
+            '"' + $escaped + '"'
+        }
+        else { $argument }
     }
 
     return ($quoted -join ' ')
@@ -338,9 +347,11 @@ function Select-Files {
         [int]$Limit = 200
     )
 
+    # The leading comma stops PowerShell unrolling the array on return: without it, no match comes
+    # back as null and one match as a bare string, and the JSON report changes type with the count.
     $matched = @($Files | Where-Object { $_ -match $Pattern })
-    if ($matched.Count -gt $Limit) { return @($matched | Select-Object -First $Limit) }
-    return $matched
+    if ($matched.Count -gt $Limit) { return ,@($matched | Select-Object -First $Limit) }
+    return ,$matched
 }
 
 function Read-XmlFile {
@@ -414,11 +425,60 @@ function Get-SolutionFacts {
     }
 }
 
+function Get-ItemMetadata {
+    param([System.Xml.XmlElement]$Node, [string]$Name)
+
+    # MSBuild accepts item metadata as an attribute or as a child element.
+    $value = $Node.GetAttribute($Name)
+    if (-not $value) {
+        $child = $Node.SelectSingleNode("*[local-name()='$Name']")
+        if ($child) { $value = $child.InnerText.Trim() }
+    }
+    # A version written as an MSBuild property, $(XunitVersion), cannot be resolved by reading XML.
+    if (-not $value -or $value -match '\$\(') { return $null }
+    return $value
+}
+
+$script:centralVersionsCache = @{}
+
+function Get-CentralPackageVersions {
+    param([string]$Root, [string]$ProjectFolder)
+
+    # Central Package Management: MSBuild imports the Directory.Packages.props nearest to the
+    # project, walking up the folders. Stop at the repository root rather than read files outside it.
+    $folder = $ProjectFolder
+    $propsFile = $null
+    while ($folder) {
+        $candidate = Join-Path $folder 'Directory.Packages.props'
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { $propsFile = $candidate; break }
+        if ($folder.TrimEnd('\', '/') -eq $Root.TrimEnd('\', '/')) { break }
+        $parent = Split-Path -Parent $folder
+        if (-not $parent -or $parent -eq $folder -or -not $parent.StartsWith($Root.TrimEnd('\', '/'), [System.StringComparison]::OrdinalIgnoreCase)) { break }
+        $folder = $parent
+    }
+
+    if (-not $propsFile) { return @{} }
+    if ($script:centralVersionsCache.ContainsKey($propsFile)) { return $script:centralVersionsCache[$propsFile] }
+
+    $versions = @{}
+    $document = Read-XmlFile -FullPath $propsFile
+    if ($document) {
+        foreach ($node in $document.DocumentElement.SelectNodes('//*[local-name()="PackageVersion"]')) {
+            $id = $node.GetAttribute('Include')
+            if (-not $id) { $id = $node.GetAttribute('Update') }
+            if ($id -and -not $versions.ContainsKey($id)) { $versions[$id] = Get-ItemMetadata -Node $node -Name 'Version' }
+        }
+    }
+    $script:centralVersionsCache[$propsFile] = $versions
+    return $versions
+}
+
 function Get-ProjectFacts {
     param([string]$Root, [string[]]$ProjectFiles)
 
     foreach ($relative in $ProjectFiles) {
         $fullPath = Join-Path $Root $relative
+        $projectFolder = Split-Path -Parent $fullPath
         $document = Read-XmlFile -FullPath $fullPath
 
         if (-not $document) {
@@ -434,17 +494,47 @@ function Get-ProjectFacts {
             if (-not $properties.ContainsKey($node.LocalName)) { $properties[$node.LocalName] = $node.InnerText.Trim() }
         }
 
+        $centralVersions = Get-CentralPackageVersions -Root $Root -ProjectFolder $projectFolder
         $packages = foreach ($node in $projectElement.SelectNodes('//*[local-name()="PackageReference"]')) {
             $id = $node.GetAttribute('Include')
             if (-not $id) { $id = $node.GetAttribute('Update') }
-            $version = $node.GetAttribute('Version')
-            if (-not $version) {
-                $versionNode = $node.SelectSingleNode('*[local-name()="Version"]')
-                if ($versionNode) { $version = $versionNode.InnerText.Trim() }
-            }
-            if ($id) { [pscustomobject]@{ id = $id; version = $(if ($version) { $version } else { $null }) } }
+            # VersionOverride beats the central version; a version on the reference itself means the
+            # project does not use Central Package Management for that package.
+            $version = Get-ItemMetadata -Node $node -Name 'VersionOverride'
+            if (-not $version) { $version = Get-ItemMetadata -Node $node -Name 'Version' }
+            if (-not $version -and $id -and $centralVersions.ContainsKey($id)) { $version = $centralVersions[$id] }
+            if ($id) { [pscustomobject]@{ id = $id; version = $version } }
         }
         $packages = @($packages)
+
+        # Legacy projects list their NuGet packages in packages.config next to the project file.
+        $packagesConfig = Join-Path $projectFolder 'packages.config'
+        if (Test-Path -LiteralPath $packagesConfig -PathType Leaf) {
+            $configDocument = Read-XmlFile -FullPath $packagesConfig
+            if ($configDocument) {
+                foreach ($node in $configDocument.SelectNodes('/packages/package')) {
+                    $id = $node.GetAttribute('id')
+                    if ($id -and -not ($packages | Where-Object { $_.id -eq $id })) {
+                        $packages += [pscustomobject]@{ id = $id; version = $(if ($node.GetAttribute('version')) { $node.GetAttribute('version') } else { $null }) }
+                    }
+                }
+            }
+        }
+
+        # Projects this one references, as repository-relative paths, so a test project can be tied
+        # to the plugin project it tests.
+        $projectReferences = @(foreach ($node in $projectElement.SelectNodes('//*[local-name()="ProjectReference"]')) {
+            $include = $node.GetAttribute('Include')
+            if (-not $include) { continue }
+            try {
+                $referenced = [System.IO.Path]::GetFullPath((Join-Path $projectFolder ($include -replace '\\', [System.IO.Path]::DirectorySeparatorChar)))
+                if ($referenced.StartsWith($Root, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $referenced.Substring($Root.Length).TrimStart('\', '/') -replace '\\', '/'
+                }
+            }
+            catch { }
+        })
+        $assemblyReferences = @(foreach ($node in $projectElement.SelectNodes('//*[local-name()="Reference"]')) { $node.GetAttribute('Include') })
 
         $frameworks = @()
         if ($properties.ContainsKey('TargetFramework') -and $properties['TargetFramework']) {
@@ -464,25 +554,44 @@ function Get-ProjectFacts {
             $relative -match '(?i)(^|/)tests?/' -or
             ($packageIds | Where-Object { $_ -match '(?i)^(xunit|nunit|mstest\.testframework|microsoft\.net\.test\.sdk)' })
 
+        # A plugin or custom API implements IPlugin, so it references the Dataverse SDK: as a
+        # Microsoft.CrmSdk package, or as Microsoft.Xrm.Sdk in a legacy <Reference>. XrmTooling
+        # alone is a client that connects from outside, and an executable is never loaded by
+        # Dataverse, so neither counts as plugin code.
+        $referencesSdk =
+            [bool]($packageIds | Where-Object { $_ -match '(?i)^microsoft\.crmsdk\.(coreassemblies|workflow)' }) -or
+            [bool]($assemblyReferences | Where-Object { $_ -match '(?i)^microsoft\.xrm\.sdk(\.workflow)?(,|$)' })
+        $isExecutable = $properties.ContainsKey('OutputType') -and $properties['OutputType'] -match '(?i)^(exe|winexe)$'
+        $inPluginFolder = $relative -match '(?i)(^|/)(plugins?|customapis?)(/|$)'
+
         $role = 'other'
         if ($isTest) { $role = 'test' }
-        elseif ($packageIds | Where-Object { $_ -match '(?i)^microsoft\.crmsdk' }) { $role = 'dataverse' }
-        elseif ($relative -match '(?i)(^|/)(plugins?|customapis?)(/|$)') { $role = 'dataverse' }
+        elseif ($isExecutable) { $role = 'other' }
+        elseif ($referencesSdk -or $inPluginFolder) { $role = 'dataverse' }
 
-        $signs =
-            ($properties.ContainsKey('SignAssembly') -and $properties['SignAssembly'] -match '(?i)^true$') -or
-            ($properties.ContainsKey('AssemblyOriginatorKeyFile') -and $properties['AssemblyOriginatorKeyFile'])
+        # SignAssembly decides; a key file alone signs nothing when SignAssembly is explicitly false.
+        $signs = $false
+        if ($properties.ContainsKey('SignAssembly') -and $properties['SignAssembly']) {
+            $signs = $properties['SignAssembly'] -match '(?i)^true$'
+        }
+        elseif ($properties.ContainsKey('AssemblyOriginatorKeyFile') -and $properties['AssemblyOriginatorKeyFile']) {
+            $signs = $true
+        }
 
         [pscustomobject]@{
-            path             = $relative
-            role             = $role
-            sdkStyle         = $sdkStyle
-            targetFrameworks = @($frameworks | Select-Object -Unique)
-            rootNamespace    = $(if ($properties.ContainsKey('RootNamespace')) { $properties['RootNamespace'] } else { $null })
-            assemblyName     = $(if ($properties.ContainsKey('AssemblyName')) { $properties['AssemblyName'] } else { $null })
-            signAssembly     = [bool]$signs
-            packages         = $packages
-            readError        = $null
+            path              = $relative
+            role              = $role
+            sdkStyle          = $sdkStyle
+            targetFrameworks  = @($frameworks | Select-Object -Unique)
+            rootNamespace     = $(if ($properties.ContainsKey('RootNamespace')) { $properties['RootNamespace'] } else { $null })
+            assemblyName      = $(if ($properties.ContainsKey('AssemblyName')) { $properties['AssemblyName'] } else { $null })
+            signAssembly      = [bool]$signs
+            # Whether this project touches the Dataverse SDK or FakeXrmEasy, or sits in a plugin
+            # folder: a test project with none of these does not test plugins.
+            dataverseSignals  = $referencesSdk -or $inPluginFolder -or [bool]($packageIds | Where-Object { $_ -match '(?i)^FakeXrmEasy' })
+            projectReferences = $projectReferences
+            packages          = $packages
+            readError         = $null
         }
     }
 }
@@ -739,6 +848,9 @@ if (-not (Test-Path -LiteralPath $Path)) {
     Stop-WithError "Path '$Path' does not exist."
 }
 $Path = (Resolve-Path -LiteralPath $Path).Path
+# C:\repo\ and C:\repo are the same folder; keep the form without the separator, except at a root.
+$trimmedPath = $Path.TrimEnd('\', '/')
+if ($trimmedPath -and $trimmedPath -notmatch '^[A-Za-z]:$') { $Path = $trimmedPath }
 
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $templatesRoot = Join-Path $pluginRoot 'templates'
@@ -922,6 +1034,9 @@ $node = [ordered]@{
 
 # ---- environment --------------------------------------------------------------------------
 
+$solutionReportLimit = 100
+$allUnmanagedSolutions = @()
+
 $environment = [ordered]@{
     probed             = -not $SkipEnvironment
     authProfiles       = @()
@@ -931,6 +1046,7 @@ $environment = [ordered]@{
     nameSignal         = 'unknown'
     treatAsProduction  = $true
     solutions          = @()
+    solutionsTruncated = $false
     solutionCount      = 0
     unmanagedSolutions = 0
     resolvedPublisher  = $null
@@ -974,10 +1090,13 @@ if (-not $SkipEnvironment -and $tooling.pac.present) {
         if ($listRun.Ran -and $listRun.ExitCode -eq 0) {
             $environmentSolutions = @(Get-EnvironmentSolutions -Output $listRun.Stdout)
             $environment['solutionCount'] = $environmentSolutions.Count
-            $environment['unmanagedSolutions'] = @($environmentSolutions | Where-Object { -not $_.managed }).Count
-            # Only the unmanaged ones can be a DEV working solution, and the list is long in a
-            # mature environment: report those, capped.
-            $environment['solutions'] = @($environmentSolutions | Where-Object { -not $_.managed } | Select-Object -First 100)
+            # Only the unmanaged ones can be a DEV working solution. The core-solution guess below
+            # reads every one of them; only the list emitted in the report is capped, because it is
+            # long in a mature environment.
+            $allUnmanagedSolutions = @($environmentSolutions | Where-Object { -not $_.managed })
+            $environment['unmanagedSolutions'] = $allUnmanagedSolutions.Count
+            $environment['solutions'] = @($allUnmanagedSolutions | Select-Object -First $solutionReportLimit)
+            $environment['solutionsTruncated'] = $allUnmanagedSolutions.Count -gt $solutionReportLimit
             if (@($environmentSolutions | Where-Object { $_.possiblyTruncated }).Count -gt 0) {
                 $notes.Add('pac solution list truncates the unique name column, and at least one name reached that width. Confirm a truncated name against the environment before using it as CoreSolution.') | Out-Null
             }
@@ -1090,10 +1209,10 @@ function Get-NodeDependency {
 }
 
 function Get-PackageVersions {
-    param([string]$Id)
+    param([string]$Id, $Projects = $projects)
 
     $found = @()
-    foreach ($project in $projects) {
+    foreach ($project in @($Projects)) {
         foreach ($package in @($project.packages)) {
             if ($package.id -and $package.id -eq $Id) {
                 $found += [pscustomobject]@{ version = $package.version; project = $project.path }
@@ -1130,9 +1249,37 @@ function New-Assessment {
 $assessments = @()
 $staleBaseline = @()
 
+function Test-AllVersionsAre {
+    param($Versions, [string]$Expected)
+
+    # A version that could not be read is never a match: it is reported as unknown instead.
+    return (@($Versions | Where-Object { $_ -ne $Expected }).Count -eq 0)
+}
+
 if ($baseline) {
-    $nonTestProjects = @($projects | Where-Object { $_.role -ne 'test' })
-    $testProjects = @($projects | Where-Object { $_.role -eq 'test' })
+    # The plugins.* standards govern Dataverse plugin code only. A console tool, an Azure Function
+    # or any other C# project in the same repository follows its own rules and is never judged here.
+    $pluginProjects = @($projects | Where-Object { $_.role -eq 'dataverse' })
+    $otherCSharpProjects = @($projects | Where-Object { $_.role -eq 'other' })
+    $pluginProjectPaths = @($pluginProjects | ForEach-Object { $_.path })
+    # Plugin tests: a test project that touches the Dataverse SDK or FakeXrmEasy, sits in a plugin
+    # folder, or references a plugin project.
+    $testProjects = @($projects | Where-Object {
+        $_.role -eq 'test' -and (
+            $_.dataverseSignals -or
+            @($_.projectReferences | Where-Object { $pluginProjectPaths -contains $_ }).Count -gt 0
+        )
+    })
+    $otherTestProjects = @($projects | Where-Object { $_.role -eq 'test' -and $testProjects -notcontains $_ })
+
+    $noPluginDetail = 'No Dataverse plugin project in the repository.'
+    if ($otherCSharpProjects.Count -gt 0) {
+        $noPluginDetail = 'C# projects exist, but none references the Dataverse SDK or sits in a plugins/ or customapis/ folder, so none is plugin code. Confirm with the user if one of them is.'
+    }
+    $noPluginTestDetail = 'No plugin test project in the repository.'
+    if ($otherTestProjects.Count -gt 0) {
+        $noPluginTestDetail = 'Test projects exist, but none references a plugin project, FakeXrmEasy or the Dataverse SDK, so none tests plugins.'
+    }
 
     foreach ($assertion in $baseline.assertions) {
         # The baseline is only trustworthy while the text it quotes is still in the template it
@@ -1167,74 +1314,87 @@ if ($baseline) {
         switch ($assertion.id) {
 
             'plugins.targetFramework' {
-                $frameworks = @($nonTestProjects | ForEach-Object { $_.targetFrameworks } | Where-Object { $_ } | Select-Object -Unique)
-                if (-not $nonTestProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No C# projects in the repository.' }
-                elseif (-not $frameworks) { $assessments += New-Assessment -Assertion $assertion -Status 'unknown' -Detected $null -Detail 'C# projects exist but declare no target framework this script could read.' -Evidence @($nonTestProjects | ForEach-Object { $_.path }) }
+                $frameworks = @($pluginProjects | ForEach-Object { $_.targetFrameworks } | Where-Object { $_ } | Select-Object -Unique)
+                if (-not $pluginProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail $noPluginDetail -Evidence @($otherCSharpProjects | ForEach-Object { $_.path }) }
+                elseif (-not $frameworks) { $assessments += New-Assessment -Assertion $assertion -Status 'unknown' -Detected $null -Detail 'Plugin projects exist but declare no target framework this script could read.' -Evidence @($pluginProjects | ForEach-Object { $_.path }) }
                 else {
-                    $offenders = @($nonTestProjects | Where-Object { @($_.targetFrameworks) -notcontains 'net462' })
+                    $offenders = @($pluginProjects | Where-Object { @($_.targetFrameworks) -notcontains 'net462' })
                     $status = if ($offenders.Count -eq 0) { 'match' } else { 'deviates' }
                     $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $frameworks -Evidence @($offenders | ForEach-Object { "$($_.path) -> $(@($_.targetFrameworks) -join ', ')" })
                 }
             }
 
             'plugins.sdkStyle' {
-                if (-not $nonTestProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No C# projects in the repository.' }
+                if (-not $pluginProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail $noPluginDetail -Evidence @($otherCSharpProjects | ForEach-Object { $_.path }) }
                 else {
-                    $legacy = @($nonTestProjects | Where-Object { -not $_.sdkStyle })
+                    $legacy = @($pluginProjects | Where-Object { -not $_.sdkStyle })
                     $status = if ($legacy.Count -eq 0) { 'match' } else { 'deviates' }
                     $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $(if ($legacy.Count -eq 0) { 'sdk-style' } else { 'legacy csproj' }) -Evidence @($legacy | ForEach-Object { $_.path })
                 }
             }
 
             'plugins.strongNaming' {
-                if (-not $nonTestProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No C# projects in the repository.' }
+                if (-not $pluginProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail $noPluginDetail -Evidence @($otherCSharpProjects | ForEach-Object { $_.path }) }
                 else {
-                    $signed = @($nonTestProjects | Where-Object { $_.signAssembly })
-                    $snkFiles = Select-Files -Files $files -Pattern '(?i)\.snk$' -Limit 10
-                    $status = if ($signed.Count -eq 0 -and $snkFiles.Count -eq 0) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $(if ($status -eq 'match') { 'unsigned' } else { 'strong-named' }) -Evidence (@($signed | ForEach-Object { $_.path }) + @($snkFiles))
+                    # The project files decide. A key file lying in the repository is evidence worth
+                    # showing, but signs nothing unless a project uses it.
+                    $signed = @($pluginProjects | Where-Object { $_.signAssembly })
+                    $snkFiles = @(Select-Files -Files $files -Pattern '(?i)\.snk$' -Limit 10)
+                    $status = if ($signed.Count -eq 0) { 'match' } else { 'deviates' }
+                    $detail = $null
+                    if ($status -eq 'match' -and $snkFiles.Count -gt 0) { $detail = 'Key files exist in the repository, but no plugin project signs with one.' }
+                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $(if ($status -eq 'match') { 'unsigned' } else { 'strong-named' }) -Detail $detail -Evidence (@($signed | ForEach-Object { $_.path }) + $snkFiles)
                 }
             }
 
             'plugins.test.xunit' {
-                $found = Get-PackageVersions -Id 'xunit'
+                $found = Get-PackageVersions -Id 'xunit' -Projects $testProjects
                 $otherRunners = @()
                 foreach ($runner in @('nunit', 'MSTest.TestFramework', 'xunit.v3')) {
-                    $otherRunners += Get-PackageVersions -Id $runner | ForEach-Object { "$runner $($_.version) ($($_.project))" }
+                    $otherRunners += Get-PackageVersions -Id $runner -Projects $testProjects | ForEach-Object { "$runner $($_.version) ($($_.project))" }
                 }
-                if (-not $testProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No test projects in the repository.' }
+                if (-not $testProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail $noPluginTestDetail -Evidence @($otherTestProjects | ForEach-Object { $_.path }) }
                 elseif ($otherRunners.Count -gt 0 -and $found.Count -eq 0) { $assessments += New-Assessment -Assertion $assertion -Status 'deviates' -Detected $otherRunners -Detail 'The repository uses a different test runner.' -Evidence @($testProjects | ForEach-Object { $_.path }) }
                 elseif ($found.Count -eq 0) { $assessments += New-Assessment -Assertion $assertion -Status 'unknown' -Detected $null -Detail 'Test projects exist but reference no runner this script recognises.' -Evidence @($testProjects | ForEach-Object { $_.path }) }
                 else {
                     $versions = @($found | ForEach-Object { $_.version } | Select-Object -Unique)
-                    $status = if (@($versions | Where-Object { $_ -ne '2.9.3' }).Count -eq 0) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $versions -Evidence @($found | ForEach-Object { "$($_.project) -> xunit $($_.version)" })
+                    $unresolved = @($found | Where-Object { -not $_.version })
+                    if ($unresolved.Count -gt 0) { $status = 'unknown'; $detail = 'xunit is referenced without a version this script could resolve (no Version, VersionOverride or Directory.Packages.props entry).' }
+                    else { $status = if (Test-AllVersionsAre -Versions $versions -Expected '2.9.3') { 'match' } else { 'deviates' }; $detail = $null }
+                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected @($versions | Where-Object { $_ }) -Detail $detail -Evidence @($found | ForEach-Object { "$($_.project) -> xunit $(if ($_.version) { $_.version } else { '(version unresolved)' })" })
                 }
             }
 
             'plugins.test.fakeXrmEasyPlugins' {
                 $found = @()
-                foreach ($project in $projects) {
+                foreach ($project in $testProjects) {
                     foreach ($package in @($project.packages)) {
                         if ($package.id -match '(?i)^FakeXrmEasy') { $found += [pscustomobject]@{ id = $package.id; version = $package.version; project = $project.path } }
                     }
                 }
-                if (-not $testProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'No test projects in the repository.' }
+                if (-not $testProjects) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail $noPluginTestDetail -Evidence @($otherTestProjects | ForEach-Object { $_.path }) }
                 elseif ($found.Count -eq 0) { $assessments += New-Assessment -Assertion $assertion -Status 'deviates' -Detected $null -Detail 'No FakeXrmEasy package is referenced, so plugin tests either do not exist or use another approach.' -Evidence @($testProjects | ForEach-Object { $_.path }) }
                 else {
                     $pluginPackage = @($found | Where-Object { $_.id -match '(?i)^FakeXrmEasy\.Plugins\.v9$' })
-                    $status = if ($pluginPackage.Count -gt 0 -and @($pluginPackage | Where-Object { $_.version -ne '2.9.4' }).Count -eq 0) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected @($found | ForEach-Object { "$($_.id) $($_.version)" } | Select-Object -Unique) -Evidence @($found | ForEach-Object { "$($_.project) -> $($_.id) $($_.version)" })
+                    $detail = $null
+                    if ($pluginPackage.Count -eq 0) { $status = 'deviates' }
+                    elseif (@($pluginPackage | Where-Object { -not $_.version }).Count -gt 0) { $status = 'unknown'; $detail = 'FakeXrmEasy.Plugins.v9 is referenced without a version this script could resolve (no Version, VersionOverride or Directory.Packages.props entry).' }
+                    elseif (Test-AllVersionsAre -Versions @($pluginPackage | ForEach-Object { $_.version }) -Expected '2.9.4') { $status = 'match' }
+                    else { $status = 'deviates' }
+                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected @($found | ForEach-Object { "$($_.id) $(if ($_.version) { $_.version } else { '(version unresolved)' })" } | Select-Object -Unique) -Detail $detail -Evidence @($found | ForEach-Object { "$($_.project) -> $($_.id) $(if ($_.version) { $_.version } else { '(version unresolved)' })" })
                 }
             }
 
             'plugins.test.fakeXrmEasyMessages' {
-                $found = Get-PackageVersions -Id 'FakeXrmEasy.Messages.v9'
+                $found = Get-PackageVersions -Id 'FakeXrmEasy.Messages.v9' -Projects $testProjects
                 if ($found.Count -eq 0) { $assessments += New-Assessment -Assertion $assertion -Status 'not-applicable' -Detected $null -Detail 'The package is optional and is not referenced.' }
                 else {
                     $versions = @($found | ForEach-Object { $_.version } | Select-Object -Unique)
-                    $status = if (@($versions | Where-Object { $_ -ne '2.9.4' }).Count -eq 0) { 'match' } else { 'deviates' }
-                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected $versions -Evidence @($found | ForEach-Object { "$($_.project) -> $($_.version)" })
+                    $detail = $null
+                    if (@($found | Where-Object { -not $_.version }).Count -gt 0) { $status = 'unknown'; $detail = 'FakeXrmEasy.Messages.v9 is referenced without a version this script could resolve (no Version, VersionOverride or Directory.Packages.props entry).' }
+                    elseif (Test-AllVersionsAre -Versions $versions -Expected '2.9.4') { $status = 'match' }
+                    else { $status = 'deviates' }
+                    $assessments += New-Assessment -Assertion $assertion -Status $status -Detected @($versions | Where-Object { $_ }) -Detail $detail -Evidence @($found | ForEach-Object { "$($_.project) -> $(if ($_.version) { $_.version } else { '(version unresolved)' })" })
                 }
             }
 
@@ -1413,8 +1573,8 @@ function New-Proposal {
 # so they are left out of every core-solution guess below.
 $featureSolutionPattern = '^(feature|fix|chore)_'
 $committedCore = @($solutions | Where-Object { $_.managed -ne $true -and $_.uniqueName -and $_.uniqueName -notmatch $featureSolutionPattern })
-$environmentCore = @($environment['solutions'] | Where-Object { $_.uniqueName -notmatch $featureSolutionPattern -and $_.uniqueName -notin @('Default', 'Active') })
-$featureSolutionsInEnvironment = @($environment['solutions'] | Where-Object { $_.uniqueName -match $featureSolutionPattern } | ForEach-Object { $_.uniqueName })
+$environmentCore = @($allUnmanagedSolutions | Where-Object { $_.uniqueName -notmatch $featureSolutionPattern -and $_.uniqueName -notin @('Default', 'Active') })
+$featureSolutionsInEnvironment = @($allUnmanagedSolutions | Where-Object { $_.uniqueName -match $featureSolutionPattern } | ForEach-Object { $_.uniqueName })
 $primarySolution = $committedCore | Select-Object -First 1
 $resolved = $environment['resolvedPublisher']
 
@@ -1476,7 +1636,11 @@ if (-not $publisherPrefixProposal['value'] -and $prefixCandidates.Count -gt 0) {
 
 # RootNamespace
 $namespaceProposal = New-Proposal -Value $null -Source 'No C# project declares a namespace' -Confidence 'none'
-$declaredNamespaces = @($projects | Where-Object { $_.role -ne 'test' } | ForEach-Object {
+# Plugin code carries the namespace the harness extends. Other C# projects (tools, functions) only
+# speak for it when there is no plugin project at all.
+$namespaceProjects = @($projects | Where-Object { $_.role -eq 'dataverse' })
+if ($namespaceProjects.Count -eq 0) { $namespaceProjects = @($projects | Where-Object { $_.role -eq 'other' }) }
+$declaredNamespaces = @($namespaceProjects | ForEach-Object {
     if ($_.rootNamespace) { $_.rootNamespace } elseif ($_.assemblyName) { $_.assemblyName } else { [System.IO.Path]::GetFileNameWithoutExtension($_.path) }
 } | Where-Object { $_ } | Select-Object -Unique)
 
