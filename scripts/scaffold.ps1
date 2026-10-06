@@ -145,7 +145,7 @@ function Assert-Value {
 # Validate every value before touching the working tree: a rejected prefix after a partial copy
 # would leave a half-scaffolded repository behind.
 Assert-Value -Name 'ProjectName' -Value $ProjectName -Pattern '^[A-Za-z][A-Za-z0-9]*$' `
-    -Requirement 'It lands in .NET namespaces and JavaScript form API objects, so it must start with a letter and contain letters and digits only.'
+    -Requirement 'It names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
 
 Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
     -Requirement 'Use the publisher unique name, not its display name: pac solution init needs it to create feature solutions. Letters, digits and underscores only.'
@@ -153,12 +153,13 @@ Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^
 Assert-Value -Name 'PublisherPrefix' -Value $PublisherPrefix -Pattern '^[a-z][a-z0-9]{1,7}$' `
     -Requirement 'A Dataverse customization prefix is 2 to 8 lowercase alphanumeric characters and starts with a letter.'
 
-if ($PublisherPrefix -eq 'mscrm') {
-    Stop-WithError "PublisherPrefix 'mscrm' is reserved by Dataverse. Choose another prefix."
+# Dataverse rejects any prefix that starts with mscrm, not only mscrm itself.
+if ($PublisherPrefix.StartsWith('mscrm')) {
+    Stop-WithError "PublisherPrefix '$PublisherPrefix' starts with 'mscrm', which Dataverse reserves. Choose another prefix."
 }
 
 Assert-Value -Name 'CoreSolution' -Value $CoreSolution -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
-    -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution.\"
+    -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution."
 
 Assert-Value -Name 'RootNamespace' -Value $RootNamespace -Pattern '^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$' `
     -Requirement 'It must be a valid .NET namespace, optionally dotted.'
@@ -356,18 +357,47 @@ if ($written.Count -eq 0) {
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
-foreach ($file in $plannedFiles) {
-    $destinationDirectory = Split-Path -Parent $file.Destination
+# Substitution is textual, so a token landing inside a JSON string needs the value JSON-escaped:
+# a description with a quote or a backslash would otherwise break package.json. ConvertTo-Json of
+# a bare string yields the quoted, escaped literal; the outer quotes are the template's own.
+$jsonTokens = [ordered]@{}
+foreach ($token in $tokens.Keys) {
+    $literal = ConvertTo-Json -InputObject ([string]$tokens[$token]) -Compress
+    $jsonTokens[$token] = $literal.Substring(1, $literal.Length - 2)
+}
+
+# Render everything before writing anything: a generated file that does not parse must abort the
+# scaffold, not leave a half-written repository behind.
+$rendered = foreach ($file in $plannedFiles) {
+    $isJson = $file.Relative -match '(?i)\.json$'
+    $values = if ($isJson) { $jsonTokens } else { $tokens }
+
+    $content = [System.IO.File]::ReadAllText($file.Source)
+    foreach ($token in $values.Keys) {
+        $content = $content.Replace($token, $values[$token])
+    }
+
+    [pscustomobject]@{ File = $file; Content = $content; IsJson = $isJson }
+}
+
+$invalidJson = foreach ($item in @($rendered | Where-Object { $_.IsJson })) {
+    try { $item.Content | ConvertFrom-Json | Out-Null }
+    catch { "$($item.File.Relative): $($_.Exception.Message)" }
+}
+
+if ($invalidJson) {
+    Write-Host 'These generated JSON files do not parse:' -ForegroundColor Red
+    $invalidJson | ForEach-Object { Write-Host "  $_" }
+    Stop-WithError 'Nothing was written. Report the file and the value that broke it instead of hand-editing the output.'
+}
+
+foreach ($item in $rendered) {
+    $destinationDirectory = Split-Path -Parent $item.File.Destination
     if (-not (Test-Path -LiteralPath $destinationDirectory)) {
         New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
     }
 
-    $content = [System.IO.File]::ReadAllText($file.Source)
-    foreach ($token in $tokens.Keys) {
-        $content = $content.Replace($token, $tokens[$token])
-    }
-
-    [System.IO.File]::WriteAllText($file.Destination, $content, $utf8NoBom)
+    [System.IO.File]::WriteAllText($item.File.Destination, $item.Content, $utf8NoBom)
 }
 
 foreach ($keep in $plannedKeeps) {

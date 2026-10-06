@@ -90,9 +90,9 @@ Show all six as a table with value, source and confidence, then ask in one plain
 
 | Value | What it is | Rules |
 | --- | --- | --- |
-| `ProjectName` | Short project name. Lands in .NET namespaces and JavaScript form API objects | Starts with a letter, letters and digits only |
+| `ProjectName` | Short project name. Names the JavaScript form API namespace and the WebResources project | Starts with a letter, letters and digits only |
 | `PublisherUniqueName` | Dataverse publisher **unique** name, not its display name. `pac solution init` needs it to create feature solutions | Letters, digits and underscores |
-| `PublisherPrefix` | Dataverse customization prefix, carried by every component | 2-8 lowercase alphanumeric, starts with a letter, not `mscrm`. **Permanent**: say this out loud before accepting it |
+| `PublisherPrefix` | Dataverse customization prefix, carried by every component | 2-8 lowercase alphanumeric, starts with a letter, cannot start with `mscrm`. **Permanent**: say this out loud before accepting it |
 | `CoreSolution` | Unique name of the core unmanaged solution in DEV, or `none` when the project has none. Optional: omit it and the scaffold uses `none` | Letters, digits and underscores, no publisher prefix |
 | `RootNamespace` | Root .NET namespace | Valid .NET namespace, dots allowed |
 | `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `CLAUDE.md` | Free text |
