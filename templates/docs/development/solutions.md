@@ -80,7 +80,8 @@ pac solution add-solution-component --solutionUniqueName <solution> --component 
 ```
 
 - `--component` accepts a schema name as well as an id. Prefer the schema name: it is the value already in the code.
-- `--componentType` is a number. The common ones in this stack: entity `1`, attribute `2`, global choice `9`, saved query `26`, workflow and cloud flow `29`, form `60`, web resource `61`, model-driven app `80`, plug-in assembly `91`, plug-in step `92`, canvas app `300`, connection reference `371`, environment variable definition `380`, environment variable value `381`. Anything not on that list is looked up in the [SolutionComponent reference](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/solutioncomponent), never guessed.
+- `--componentType` is a number. The common ones in this stack: entity `1`, attribute `2`, global choice `9`, saved query `26`, workflow and cloud flow `29`, form `60`, web resource `61`, plug-in assembly `91`, plug-in step `92`, canvas app `300`, environment variable definition `380`, environment variable value `381`. Anything not on that list is looked up in the [SolutionComponent reference](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/solutioncomponent), never guessed.
+- Some components have no fixed number: they are table-based, and their type code depends on the environment. Connection references are one (`371` and `372` are connectors, not connection references). For those, and for any type the reference does not list, read the code from the environment: the component already exists, so `GET <env>/api/data/v9.2/solutioncomponents?$filter=objectid eq <component-id>&$select=componenttype` returns the number Dataverse itself uses.
 - Adding a component to a solution is additive and reversible; it does not need the confirmation that creating a solution does.
 - Do this as each component is created or modified, not as a sweep at the end.
 
