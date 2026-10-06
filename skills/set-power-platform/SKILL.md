@@ -97,7 +97,7 @@ Show all six as a table with value, source and confidence, then ask in one plain
 | `RootNamespace` | Root .NET namespace | Valid .NET namespace, dots allowed |
 | `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `CLAUDE.md` | Free text |
 
-- **Core solution.** Most projects have one, but it is not mandatory. Check the proposed name against `environment.solutions`; a name flagged `possiblyTruncated` was cut by `pac solution list`, so confirm it. `featureSolutionsInEnvironment` lists the per-branch solutions already there: none of them is the core solution.
+- **Core solution.** Most projects have one, but it is not mandatory. Check the proposed name against `environment.solutions`; a name flagged `possiblyTruncated` was cut by `pac solution list`, so confirm it. When `environment.solutionsTruncated` is true, that list holds only the first 100 unmanaged solutions: a core solution missing from it may still exist, so ask rather than conclude it does not. The proposal itself was computed over the full list. `featureSolutionsInEnvironment` lists the per-branch solutions already there: none of them is the core solution.
 - **Publisher.** When `PublisherUniqueName` or `PublisherPrefix` is `none` but the core solution exists in the connected environment, re-run Discover with `-ResolvePublisherFromSolution <CoreSolution>` instead of asking. It exports that solution to a temp folder to read its publisher, which takes a while on a large solution: say so first. Without a core solution, ask; the maker portal shows both under Solutions > Publishers.
 
 ## 5. Existing project: adapt the standards to it
