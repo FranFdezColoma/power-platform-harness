@@ -100,7 +100,7 @@ Compiling is not done. A task is complete only when all of the following hold:
 - Commit messages describe the change and its motivation, not just the action (`fix`, `update` alone are not enough).
 - Prefer `gh` for PR creation, review and inspection over the web UI.
 - Branch naming: `<type>/<short-description>` (e.g. `fix/`, `feature/`, `chore/`).
-- One unit of work, one branch, one feature solution. Before starting anything, ask whether the work goes on the current branch or a new one, and derive the feature solution name from the branch: `docs/development/solutions.md` owns that flow and its commands.
+- One unit of work, one branch, one feature solution, except on the trunk, which has no feature solution: `docs/development/solutions.md` says which solution applies there. Before starting anything, ask whether the work goes on the current branch or a new one, and derive the feature solution name from the branch: `docs/development/solutions.md` owns that flow and its commands.
 
 ## Standards index
 

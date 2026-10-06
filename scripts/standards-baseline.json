@@ -57,7 +57,7 @@
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| Node.js | 22.13 | 24 |",
       "install": "winget install --id OpenJS.NodeJS.LTS --source winget",
-      "guidance": "Tests and lints web resources and PCF controls. The pinned ESLint 10 needs Node ^22.13 and Vitest ^22.12; Node 20 cannot run them."
+      "guidance": "Tests and lints web resources and PCF controls. The pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
     },
     {
       "id": "machine.pac",

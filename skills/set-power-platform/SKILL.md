@@ -20,7 +20,7 @@ Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not instal
 
 ## Asking the user: hard constraint
 
-`AskUserQuestion` takes at most 4 questions, and each needs 2 to 4 concrete predefined options. It cannot collect free text, a name, a prefix or a url. Calling it for those fails with `Invalid tool parameters`.
+`AskUserQuestion` takes at most 4 questions, and each needs 2 to 4 concrete predefined options. A free value (a name, a prefix, a url) has no options to offer, so it is asked for in a plain message, never through the tool. Calling the tool without real options fails with `Invalid tool parameters`.
 
 - **Free-text values** (project name, publisher, prefix, core solution, namespace, description, environment url): ask in a plain assistant message as a numbered list, then stop and wait.
 - **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, the single go-ahead in step 6, and committing in step 8.
@@ -58,6 +58,8 @@ Report `toolchain.requirements` as a table: tool, installed version, minimum, pr
 | `below-preferred` | A recommendation: works, but the preferred version is better supported. Give the `install` command |
 | `below-minimum`, `missing` | Required: recommend installing it, with the `install` command |
 | `unknown` | The version could not be read: ask the user to confirm it |
+
+A requirement may also carry a `warning` (an odd-numbered Node release, for example): report it next to the status, as a recommendation.
 
 None of these stops the skill: the harness only writes files. Every requirement that is not `ok` goes into the final report as pending.
 
@@ -148,7 +150,7 @@ Existing project only, for every `deviates` assessment and every `unknown` the u
 1. Change the stated version, framework or path so it matches what the project uses, and nothing else on the line.
 2. Directly below it, add one line: `Harness recommends <standardLabel>. Upgrade as its own change, never alongside unrelated work.`
 
-The assessment's `guidance` says why the project's choice is the one to keep for now. If the file was skipped because it already existed, do not edit it: report the deviation instead. List every edit you made.
+The assessment's `guidance` says why the project's choice is the one to keep for now. If the file was skipped because it already existed, do not edit it: report the deviation instead. An assessment with no `targetFile` (e.g. `layout.folders`) has no generated doc to edit: it was handled in step 5 (`-SkipLayout`), not here. List every edit you made.
 
 ## 8. Git
 

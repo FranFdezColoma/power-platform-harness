@@ -54,7 +54,7 @@ Offer both, and let the user choose:
 ```bash
 pac solution init --publisher-name {{publisher_unique_name}} --publisher-prefix {{publisher_prefix}} --outputDirectory <temp>/<type>_<Name>
 # pac solution init writes version 1.0; every solution starts at 1.0.0.0
-pwsh -NoProfile -Command "\$f = '<temp>/<type>_<Name>/src/Other/Solution.xml'; (Get-Content -Raw \$f) -replace '<Version>1\.0</Version>', '<Version>1.0.0.0</Version>' | Set-Content -NoNewline \$f"
+pwsh -NoProfile -Command "(Get-Content -Raw '<temp>/<type>_<Name>/src/Other/Solution.xml') -replace '<Version>1\.0</Version>', '<Version>1.0.0.0</Version>' | Set-Content -NoNewline '<temp>/<type>_<Name>/src/Other/Solution.xml'"
 pac solution pack --folder <temp>/<type>_<Name>/src --zipfile <temp>/<type>_<Name>.zip --packagetype Unmanaged
 pac solution import --path <temp>/<type>_<Name>.zip --publish-changes
 ```
