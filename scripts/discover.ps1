@@ -1547,6 +1547,14 @@ if ($baseline) {
             status    = Get-VersionStatus -Present $toolPresent -Version $version -Minimum $assertion.minimum -Preferred $assertion.preferred
             install   = $assertion.install
         }
+        if ($assertion.tool -eq 'node' -and $requirement['status'] -eq 'ok') {
+            # Vitest only accepts even (LTS-line) Node majors, so 23 or 25 clears the minimum and
+            # still cannot run the tests. A warning, not a status: the minimum is unchanged.
+            $nodeVersion = ConvertTo-ComparableVersion -Text $version
+            if ($nodeVersion -and ($nodeVersion.Major % 2) -eq 1) {
+                $requirement['warning'] = "Node $($nodeVersion.Major) is an odd-numbered, non-LTS release: the pinned Vitest does not support it. Use $($assertion.preferred) or another even-numbered major."
+            }
+        }
         if ($assertion.tool -eq 'pac') {
             # pac without an authentication profile cannot generate early-bound classes, create a
             # feature solution or read the environment, so the profile is part of the requirement.

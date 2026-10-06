@@ -1,0 +1,9 @@
+# This repository only. templates/.gitignore is template content shipped into every
+# scaffolded project: it is tracked, never ignored, and nothing here applies to it.
+.claude/settings.local.json
+.build-cache/
+
+# Build output Visual Studio or npm may leave inside templates/; scaffold.ps1 never copies it.
+templates/**/bin/
+templates/**/obj/
+templates/**/node_modules/
