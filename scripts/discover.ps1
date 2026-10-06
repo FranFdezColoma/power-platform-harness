@@ -835,20 +835,22 @@ $git = [ordered]@{
     isDirty      = $null
 }
 if ($tooling.git.present) {
-    $insideRun = Invoke-Tool -Name 'git' -Arguments @('-C', $Path, 'rev-parse', '--is-inside-work-tree') -Timeout 20
+    # --no-optional-locks: git status otherwise refreshes the stat cache and rewrites .git/index,
+    # and discovery must not write to the repository it inspects.
+    $insideRun = Invoke-Tool -Name 'git' -Arguments @('--no-optional-locks', '-C', $Path, 'rev-parse', '--is-inside-work-tree') -Timeout 20
     if ($insideRun.Ran -and $insideRun.ExitCode -eq 0 -and $insideRun.Stdout.Trim() -eq 'true') {
         $git['isRepository'] = $true
 
-        $branchRun = Invoke-Tool -Name 'git' -Arguments @('-C', $Path, 'rev-parse', '--abbrev-ref', 'HEAD') -Timeout 20
+        $branchRun = Invoke-Tool -Name 'git' -Arguments @('--no-optional-locks', '-C', $Path, 'rev-parse', '--abbrev-ref', 'HEAD') -Timeout 20
         if ($branchRun.ExitCode -eq 0) { $git['branch'] = $branchRun.Stdout.Trim() }
 
-        $countRun = Invoke-Tool -Name 'git' -Arguments @('-C', $Path, 'rev-list', '--count', 'HEAD') -Timeout 20
+        $countRun = Invoke-Tool -Name 'git' -Arguments @('--no-optional-locks', '-C', $Path, 'rev-list', '--count', 'HEAD') -Timeout 20
         if ($countRun.ExitCode -eq 0) { $git['commitCount'] = [int]$countRun.Stdout.Trim() } else { $git['commitCount'] = 0 }
 
-        $remoteRun = Invoke-Tool -Name 'git' -Arguments @('-C', $Path, 'remote', 'get-url', 'origin') -Timeout 20
+        $remoteRun = Invoke-Tool -Name 'git' -Arguments @('--no-optional-locks', '-C', $Path, 'remote', 'get-url', 'origin') -Timeout 20
         if ($remoteRun.ExitCode -eq 0) { $git['remoteUrl'] = $remoteRun.Stdout.Trim() }
 
-        $statusRun = Invoke-Tool -Name 'git' -Arguments @('-C', $Path, 'status', '--porcelain') -Timeout 30
+        $statusRun = Invoke-Tool -Name 'git' -Arguments @('--no-optional-locks', '-C', $Path, 'status', '--porcelain') -Timeout 30
         if ($statusRun.ExitCode -eq 0) { $git['isDirty'] = [bool]$statusRun.Stdout.Trim() }
     }
 }
@@ -1536,13 +1538,13 @@ $descriptionProposal = New-Proposal -Value $null -Source 'Ask the user: one or t
 $readme = @($files | Where-Object { $_ -match '(?i)^readme(\.md|\.txt)?$' } | Select-Object -First 1)
 if ($readme) {
     try {
-        $readmeLines = [System.IO.File]::ReadAllLines((Join-Path $Path $readme))
+        $readmeLines = [System.IO.File]::ReadAllLines((Join-Path $Path $readme[0]))
         $paragraph = @($readmeLines | Where-Object { $_.Trim() -and $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*\[!\[' } | Select-Object -First 2)
         if ($paragraph) {
-            $descriptionProposal = New-Proposal -Value (($paragraph -join ' ').Trim()) -Source "First paragraph of $readme" -Confidence 'medium'
+            $descriptionProposal = New-Proposal -Value (($paragraph -join ' ').Trim()) -Source "First paragraph of $($readme[0])" -Confidence 'medium'
         }
     }
-    catch { }
+    catch { $notes.Add("$($readme[0]) could not be read for ProjectDescription: $($_.Exception.Message)") | Out-Null }
 }
 
 $proposedValues = [ordered]@{
