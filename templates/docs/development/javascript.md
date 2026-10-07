@@ -12,9 +12,9 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Pin exact versions in `package.json`.
 
 ## Structure
-- One web resource per file, named `<TableOrDomain>Form.js`, in a folder named after the table's logical name (or the domain, in lowercase): `{{publisher_prefix}}_/src/js/<table>/<TableOrDomain>Form.js`, e.g. `{{publisher_prefix}}_/src/js/account/AccountForm.js`. Never directly in `js/`.
+- One web resource per file, named `<TableOrDomain>Form.js` or `<TableOrDomain>Ribbon.js`, in a folder named after the table's logical name (or the domain, in lowercase): `{{publisher_prefix}}_/src/js/<table>/<TableOrDomain>Form.js`, e.g. `{{publisher_prefix}}_/src/js/account/AccountForm.js`. Never directly in `js/`.
 - Dataverse name: the same path, e.g. `{{publisher_prefix}}_/src/js/account/AccountForm.js`, so the name in the solution always says where the file lives in the repository.
-- Unit tests are co-located next to the file they cover: `<TableOrDomain>Form.test.js`.
+- Unit tests are co-located next to the file they cover: `<TableOrDomain>Form.test.js` or `<TableOrDomain>Ribbon.test.js`.
 - `*.test.js` files are never web resources: never upload them or add them to a solution.
 - Each web resource MUST use the Revealing Module Pattern, implemented with an IIFE and assigned directly to the global `{{project_name}}` namespace.
 ```js
