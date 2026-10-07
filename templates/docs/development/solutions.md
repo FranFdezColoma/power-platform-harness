@@ -2,7 +2,7 @@
 
 Read `docs/agents/development-standards.md` first. This file only adds what is specific to solutions and to working against the DEV environment.
 
-Scope: everything that happens inside DEV — which solution a component goes into, and how the per-branch feature solution is created. Exporting, unpacking, checking, importing and promoting solutions between environments are out of scope: they belong to delivery pipelines that do not exist yet. Do not improvise them.
+Scope: everything that happens inside DEV — which solution a component goes into, and how the per-branch feature solution is created. Exporting, unpacking, checking, importing and promoting solutions between environments are out of scope: they belong to delivery pipelines, not to this file. Do not improvise them.
 
 ## Environments
 

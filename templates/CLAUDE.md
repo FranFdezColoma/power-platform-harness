@@ -7,4 +7,4 @@
 
 ## Tool usage
 
-Prefer tools over assumptions, applied on every task without waiting for a lookup: skills for specialized domain knowledge, MCP servers for inspection/operations, `pac` (Power Platform CLI) for platform lifecycle operations, `gh` for repository operations, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.
+When a task depends on a fact you could check, check it instead of recalling it: skills for specialized domain knowledge, MCP servers for inspection/operations, `pac` (Power Platform CLI) for platform lifecycle operations, `gh` for repository operations, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.

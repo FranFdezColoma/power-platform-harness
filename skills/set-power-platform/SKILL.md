@@ -154,7 +154,7 @@ The assessment's `guidance` says why the project's choice is the one to keep for
 
 ## 8. Git
 
-1. **Initialise git** — only if `repository.git.isRepository` is false: `git init`, then a first commit of the scaffold.
+1. **Initialise git** — only if `repository.git.isRepository` is false: `git init -b main` (never `master`), then a first commit of the scaffold.
 2. **Commit the harness** — if the repository already existed, the harness files are uncommitted. Offer, with `AskUserQuestion`, a commit on a new branch `chore/adopt-power-platform-harness` (`git switch -c`), never on a shared branch without asking.
 
 Creating a publisher or a solution is irreversible. Never do it on the user's behalf during this skill.

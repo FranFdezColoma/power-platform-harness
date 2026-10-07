@@ -5,13 +5,40 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## Stack
 - Target .NET Framework 4.6.2.
 - Use SDK-style projects and deploy as Dataverse `.nupkg` plug-in packages.
-- Do not strong-name assemblies. Initialize with `pac plugin init --skip-signing`; no `.snk`; `<SignAssembly>false</SignAssembly>`.
+- Do not strong-name assemblies. No `.snk`; `<SignAssembly>false</SignAssembly>`.
 - Generate early-bound classes with `pac modelbuilder build --namespace {{root_namespace}}.Common.Generated --outdirectory src/Dataverse/Plugins/{{root_namespace}}.Common/Generated`. Without `--namespace` the classes land in the global namespace. Never edit generated files manually.
 - Tests: xUnit 2.9.3 + FakeXrmEasy.Plugins.v9 2.9.4. Add FakeXrmEasy.Messages.v9 2.9.4 only when message/Custom API simulation requires it.
 
 ## Projects
 - All Dataverse code lives under `src/Dataverse/`, in `Dataverse.sln`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `Dataverse.sln` of the same name, and every project is nested in the solution folder that matches its physical folder.
-- One plugin project per table: `src/Dataverse/Plugins/{{root_namespace}}.<Entity>/{{root_namespace}}.<Entity>.csproj`, e.g. `{{root_namespace}}.Account`. Create it with `pac plugin init --skip-signing` inside that folder, delete the generated `PluginBase.cs` and `Plugin1.cs`, and reference `{{root_namespace}}.Common`. Each one is its own plug-in package.
+- One plugin project per table: `src/Dataverse/Plugins/{{root_namespace}}.<Entity>/{{root_namespace}}.<Entity>.csproj`, e.g. `{{root_namespace}}.Account`. Each one is its own plug-in package. Do not use `pac plugin init`: it adds `.vscode/`, `.gitignore`, `PluginBase.cs` and `Plugin1.cs` that the project does not want. Write the `.csproj` as below, replacing `<Entity>`, and nothing else; `Microsoft.PowerApps.MSBuild.Plugin` produces the `.nupkg` on `dotnet build`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <RootNamespace>{{root_namespace}}.<Entity></RootNamespace>
+    <AssemblyName>{{root_namespace}}.<Entity></AssemblyName>
+    <SignAssembly>false</SignAssembly>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <PackageId>{{root_namespace}}.<Entity></PackageId>
+    <Version>$(FileVersion)</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CrmSdk.CoreAssemblies" Version="9.0.2.*" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.PowerApps.MSBuild.Plugin" Version="1.*" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.*" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\{{root_namespace}}.Common\{{root_namespace}}.Common.csproj" />
+  </ItemGroup>
+
+</Project>
+```
 - Each plugin project has exactly one test project, next to it: `src/Dataverse/Plugins/{{root_namespace}}.<Entity>.Tests/`. There is no separate `tests/` tree.
 - `src/Dataverse/Plugins/{{root_namespace}}.Common/` is the shared library: `PluginBase.cs`, the early-bound classes and helpers used by more than one project. It holds no plugin classes and is not registered in Dataverse.
 - Add every new project to `Dataverse.sln` in its solution folder: `dotnet sln src/Dataverse/Dataverse.sln add <csproj> --solution-folder Plugins`.
@@ -33,7 +60,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Prefer `Target`, registered images and execution context data over unnecessary `Retrieve` calls.
 - Register filtering attributes only for attributes actually required by the plugin.
 - Register required pre/post images explicitly. If required data is missing, fail fast with tracing.
-- Avoid outbound HTTP calls in synchronous plugins if possible. If explicitly required, use strict timeouts and follow sandbox constraints. Move long-running or reliability-sensitive work to async processing or queues.
+- Keep outbound HTTP calls out of synchronous plugins unless the requirement explicitly needs one; then use strict timeouts and follow sandbox constraints. Move long-running or reliability-sensitive work to async processing or queues.
 - Prevent recursive/self-triggering writes. Use `context.Depth` only when appropriate; never use a blanket `Depth > 1` guard as a substitute for correct trigger design.
 
 ## Error Handling & Tracing
