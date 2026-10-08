@@ -29,6 +29,10 @@
     ./scripts/discover.ps1 -SkipEnvironment
 
 .EXAMPLE
+    # The user gave only the prefix: look up the publisher that owns it in the environment.
+    ./scripts/discover.ps1 -PublisherPrefix nwc
+
+.EXAMPLE
     # Read the real publisher and prefix out of a solution that exists in the environment but has
     # never been unpacked into the repository. Exports to a temp folder and deletes it afterwards.
     ./scripts/discover.ps1 -ResolvePublisherFromSolution NorthwindCore
@@ -47,6 +51,10 @@ param(
     # Export this solution to a temp folder to read its real publisher name and customization
     # prefix. Read-only against Dataverse, but it transfers the whole solution: opt in explicitly.
     [string]$ResolvePublisherFromSolution,
+
+    # Customization prefix the user already gave. Matched against the publishers in the connected
+    # environment so the publisher unique name does not have to be asked for as well.
+    [string]$PublisherPrefix,
 
     # Per-command timeout. A hung pac call must not hang the caller.
     [int]$TimeoutSeconds = 90,
@@ -761,6 +769,64 @@ function Get-EnvironmentSolutions {
     }
 }
 
+function Invoke-FetchXml {
+    param([string]$FetchXml, [string[]]$Columns)
+
+    # Runs a read-only FetchXML query through pac env fetch and parses the fixed-width table it
+    # prints. Returns @{ rows; error }. The query goes through --xmlFile rather than --xml: a
+    # command line full of quotes and angle brackets does not survive the cmd.exe shim that an
+    # npm-installed pac runs behind.
+    $result = [ordered]@{ rows = @(); error = $null }
+
+    if (-not (Test-Path -LiteralPath $script:scratchRoot)) {
+        New-Item -ItemType Directory -Path $script:scratchRoot -Force | Out-Null
+    }
+    $queryFile = Join-Path $script:scratchRoot "$([guid]::NewGuid().ToString('n')).xml"
+    [System.IO.File]::WriteAllText($queryFile, $FetchXml)
+
+    $arguments = @('env', 'fetch', '--xmlFile', $queryFile)
+    if ($EnvironmentUrl) { $arguments += @('--environment', $EnvironmentUrl) }
+    $run = Invoke-Tool -Name 'pac' -Arguments $arguments -Timeout ([Math]::Max($TimeoutSeconds, 120))
+    Remove-Item -LiteralPath $queryFile -Force -ErrorAction SilentlyContinue
+
+    if (-not $run.Ran -or $run.ExitCode -ne 0) {
+        $result.error = if ($run.Error) { $run.Error } elseif ($run.Stderr) { $run.Stderr } else { $run.Stdout }
+        return $result
+    }
+
+    # pac sizes each column to its widest value and may add columns (the primary key) that were
+    # not asked for, in any order. Cut every row at the header's column offsets: values such as a
+    # friendly name contain spaces, so splitting on whitespace would misalign them.
+    $lines = @($run.Stdout -split "`r?`n")
+    $headerIndex = -1
+    for ($index = 0; $index -lt $lines.Count; $index++) {
+        $tokens = @($lines[$index].Trim() -split '\s+')
+        if (@($Columns | Where-Object { $tokens -notcontains $_ }).Count -eq 0) { $headerIndex = $index; break }
+    }
+    if ($headerIndex -lt 0) {
+        # No header means no rows: pac prints nothing but the banner for an empty result.
+        return $result
+    }
+
+    $header = $lines[$headerIndex]
+    $offsets = @([regex]::Matches($header, '\S+') | ForEach-Object { [pscustomobject]@{ Name = $_.Value; Start = $_.Index } })
+    $rows = New-Object System.Collections.Generic.List[object]
+    for ($index = $headerIndex + 1; $index -lt $lines.Count; $index++) {
+        $line = $lines[$index]
+        if (-not $line.Trim()) { continue }
+        $row = [ordered]@{}
+        for ($column = 0; $column -lt $offsets.Count; $column++) {
+            $start = $offsets[$column].Start
+            $end = if ($column + 1 -lt $offsets.Count) { $offsets[$column + 1].Start } else { [Math]::Max($line.Length, $start) }
+            $value = if ($start -lt $line.Length) { $line.Substring($start, [Math]::Min($end, $line.Length) - $start).Trim() } else { '' }
+            $row[$offsets[$column].Name] = $value
+        }
+        $rows.Add([pscustomobject]$row)
+    }
+    $result['rows'] = $rows.ToArray()
+    return $result
+}
+
 function Get-DotnetGlobalToolIds {
     param([bool]$DotnetPresent, [int]$Timeout = 30)
 
@@ -1036,6 +1102,7 @@ $node = [ordered]@{
 
 $solutionReportLimit = 100
 $allUnmanagedSolutions = @()
+$script:solutionPublishers = @{}
 
 $environment = [ordered]@{
     probed             = -not $SkipEnvironment
@@ -1049,6 +1116,7 @@ $environment = [ordered]@{
     solutionsTruncated = $false
     solutionCount      = 0
     unmanagedSolutions = 0
+    publishers         = @()
     resolvedPublisher  = $null
     errors             = @()
 }
@@ -1103,6 +1171,43 @@ if (-not $SkipEnvironment -and $tooling.pac.present) {
         }
         else {
             $environment.errors += "pac solution list failed: $(if ($listRun.Error) { $listRun.Error } else { $listRun.Stderr })"
+        }
+
+        # Publishers a project can own. Read-only ones are Microsoft's and never the project's.
+        $publisherQuery = "<fetch><entity name='publisher'><attribute name='publisherid'/><attribute name='uniquename'/><attribute name='friendlyname'/><attribute name='customizationprefix'/><filter><condition attribute='isreadonly' operator='eq' value='0'/><condition attribute='customizationprefix' operator='not-null'/></filter><order attribute='uniquename'/></entity></fetch>"
+        $publisherRun = Invoke-FetchXml -FetchXml $publisherQuery -Columns @('uniquename', 'friendlyname', 'customizationprefix')
+        if ($publisherRun.error) {
+            $environment.errors += "pac env fetch (publisher) failed: $($publisherRun.error)"
+        }
+        else {
+            # Every environment carries the Default Publisher (prefix new) and the CDS Default
+            # Publisher (prefix cr + hex). Their ids are fixed; their unique names are not.
+            $defaultPublisherIds = @('d21aab71-79e7-11dd-8874-00188b01e34f', '00000001-0000-0000-0000-00000000005a')
+            # pac pages the query and does not keep the order across pages: sort here.
+            $environment['publishers'] = @($publisherRun.rows | Where-Object { $_.customizationprefix } | Sort-Object uniquename | ForEach-Object {
+                [ordered]@{
+                    uniqueName   = $_.uniquename
+                    friendlyName = $_.friendlyname
+                    prefix       = $_.customizationprefix
+                    isDefault    = ($defaultPublisherIds -contains $_.publisherid) -or ($_.uniquename -match '^DefaultPublisher')
+                }
+            })
+        }
+
+        # The publisher of every unmanaged solution, so the core solution's publisher is one query
+        # away instead of a full solution export.
+        $solutionPublisherQuery = "<fetch><entity name='solution'><attribute name='uniquename'/><filter><condition attribute='ismanaged' operator='eq' value='0'/><condition attribute='isvisible' operator='eq' value='1'/></filter><link-entity name='publisher' from='publisherid' to='publisherid' alias='pub'><attribute name='uniquename'/><attribute name='customizationprefix'/></link-entity></entity></fetch>"
+        $solutionPublisherRun = Invoke-FetchXml -FetchXml $solutionPublisherQuery -Columns @('uniquename', 'pub.uniquename', 'pub.customizationprefix')
+        if ($solutionPublisherRun.error) {
+            $environment.errors += "pac env fetch (solution publisher) failed: $($solutionPublisherRun.error)"
+        }
+        else {
+            foreach ($row in $solutionPublisherRun.rows) {
+                $script:solutionPublishers[$row.uniquename] = [ordered]@{
+                    publisherUniqueName = $row.'pub.uniquename'
+                    publisherPrefix     = $row.'pub.customizationprefix'
+                }
+            }
         }
     }
 
@@ -1605,6 +1710,7 @@ else {
 }
 
 # Publisher unique name and prefix
+$recommendationWarnings = New-Object System.Collections.Generic.List[string]
 $publisherUniqueNameProposal = New-Proposal -Value $null -Source 'Not derivable: no committed solution manifest and no exported solution' -Confidence 'none'
 $publisherPrefixProposal = New-Proposal -Value $null -Source 'Not derivable: no committed solution manifest and no exported solution' -Confidence 'none'
 
@@ -1617,9 +1723,54 @@ elseif ($resolved -and $resolved['publisherPrefix']) {
     $publisherPrefixProposal = New-Proposal -Value $resolved['publisherPrefix'] -Source $resolved['source'] -Confidence 'high'
 }
 elseif ($environment['connected']) {
-    $hint = 'pac reports no publisher for an environment; re-run with -ResolvePublisherFromSolution <name> to read it out of an existing solution, or ask the user.'
-    $publisherUniqueNameProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
-    $publisherPrefixProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
+    $environmentPublishers = @($environment['publishers'])
+    $customPublishers = @($environmentPublishers | Where-Object { -not $_['isDefault'] })
+    $corePublisher = $null
+    if ($coreProposal['value'] -and $script:solutionPublishers.ContainsKey($coreProposal['value'])) {
+        $corePublisher = $script:solutionPublishers[$coreProposal['value']]
+    }
+
+    if ($PublisherPrefix) {
+        # The user gave the prefix. The environment decides which publisher owns it.
+        $owners = @($environmentPublishers | Where-Object { $_['prefix'] -eq $PublisherPrefix })
+        $publisherPrefixProposal = New-Proposal -Value $PublisherPrefix -Source 'Given by the user' -Confidence 'high'
+        if ($owners.Count -eq 1) {
+            $publisherUniqueNameProposal = New-Proposal -Value $owners[0]['uniqueName'] -Source "The only publisher in the connected environment with prefix $PublisherPrefix (pac env fetch)" -Confidence 'high'
+            if ($owners[0]['isDefault']) {
+                $recommendationWarnings.Add("Prefix $PublisherPrefix belongs to the environment's default publisher ($($owners[0]['uniqueName'])). Projects should use their own publisher; confirm this is intended.") | Out-Null
+            }
+        }
+        elseif ($owners.Count -gt 1) {
+            $publisherUniqueNameProposal = New-Proposal -Value $null -Source "$($owners.Count) publishers in the connected environment share prefix $PublisherPrefix. Ask which one, from the alternatives." -Confidence 'none' -Alternatives @($owners | ForEach-Object { $_['uniqueName'] })
+        }
+        else {
+            $publisherUniqueNameProposal = New-Proposal -Value $null -Source "No publisher in the connected environment has prefix $PublisherPrefix. It does not exist yet: ask for the unique name it will be created with, and confirm the prefix." -Confidence 'none' -Alternatives @($customPublishers | ForEach-Object { $_['uniqueName'] })
+            $recommendationWarnings.Add("No publisher in the connected environment has prefix $PublisherPrefix. Existing custom publishers: $(@($customPublishers | ForEach-Object { "$($_['uniqueName']) ($($_['prefix']))" }) -join ', '). Confirm the prefix before anything is created with it: it cannot be changed later.") | Out-Null
+        }
+    }
+    elseif ($corePublisher -and $corePublisher['publisherPrefix']) {
+        $source = "Publisher of the core solution $($coreProposal['value']) in the connected environment (pac env fetch)"
+        $publisherUniqueNameProposal = New-Proposal -Value $corePublisher['publisherUniqueName'] -Source $source -Confidence $coreProposal['confidence']
+        $publisherPrefixProposal = New-Proposal -Value $corePublisher['publisherPrefix'] -Source $source -Confidence $coreProposal['confidence']
+    }
+    elseif ($customPublishers.Count -eq 1) {
+        $source = 'The only custom publisher in the connected environment (pac env fetch)'
+        $publisherUniqueNameProposal = New-Proposal -Value $customPublishers[0]['uniqueName'] -Source $source -Confidence 'medium'
+        $publisherPrefixProposal = New-Proposal -Value $customPublishers[0]['prefix'] -Source $source -Confidence 'medium'
+    }
+    elseif ($customPublishers.Count -gt 1) {
+        $source = "$($customPublishers.Count) custom publishers in the connected environment. Ask which one the project uses, from the alternatives."
+        $publisherUniqueNameProposal = New-Proposal -Value $null -Source $source -Confidence 'none' -Alternatives @($customPublishers | ForEach-Object { $_['uniqueName'] })
+        $publisherPrefixProposal = New-Proposal -Value $null -Source $source -Confidence 'none' -Alternatives @($customPublishers | ForEach-Object { $_['prefix'] })
+    }
+    else {
+        $hint = 'The connected environment has no custom publisher (or it could not be read). Ask the user; re-run with -ResolvePublisherFromSolution <name> if a solution holds it.'
+        $publisherUniqueNameProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
+        $publisherPrefixProposal = New-Proposal -Value $null -Source $hint -Confidence 'none'
+    }
+}
+elseif ($PublisherPrefix) {
+    $publisherPrefixProposal = New-Proposal -Value $PublisherPrefix -Source 'Given by the user; not checked against an environment' -Confidence 'medium'
 }
 
 # Prefix evidence from existing component names: nwc_accountform.js, prefix_table, and so on.
@@ -1739,7 +1890,7 @@ $recommendation = [ordered]@{
     scaffoldArguments = @()
     askUserFor        = $missingValues
     deviationCount    = $deviating.Count
-    warnings          = @()
+    warnings          = @($recommendationWarnings)
 }
 
 if ($classification -eq 'greenfield') {
