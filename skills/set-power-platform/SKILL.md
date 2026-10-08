@@ -9,7 +9,7 @@ allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discove
 
 Two jobs, decided by what is already in the folder:
 
-- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/Dataverse/` (`Dataverse.sln`, the shared `<RootNamespace>.Common` plugin library and the WebResources build project), and the `src/Dataverse/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
+- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
 - **Existing project** — adopt the harness into it: add only what is missing, keep what the project already has, and adapt the standards to the stack the project actually uses. Never set a version, framework or layout the project does not use.
 
 Two bundled scripts do the work. `discover.ps1` reads; `scaffold.ps1` writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
@@ -22,7 +22,7 @@ Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not instal
 
 `AskUserQuestion` takes at most 4 questions, and each needs 2 to 4 concrete predefined options. A free value (a name, a prefix, a url) has no options to offer, so it is asked for in a plain message, never through the tool. Calling the tool without real options fails with `Invalid tool parameters`.
 
-- **Free-text values** (project name, publisher, prefix, core solution, namespace, description, environment url): ask in a plain assistant message as a numbered list, then stop and wait.
+- **Free-text values** (project name, publisher, prefix, core solution, description, environment url): ask in a plain assistant message as a numbered list, then stop and wait.
 - **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, picking one of the publishers discovery found in step 4, the single go-ahead in step 6, and committing in step 8.
 
 Never invent a value. Never derive one silently from the folder name. A wrong publisher prefix cannot be undone once components exist.
@@ -84,21 +84,20 @@ If the connection cannot be made — conditional access, no network, the user de
 
 ## 4. Values
 
-Six values, resolved before scaffolding. `proposedValues` carries what discovery found; each entry has a `source` and a `confidence`:
+Five values, resolved before scaffolding. `proposedValues` carries what discovery found; each entry has a `source` and a `confidence`:
 
 - `high` — read out of a committed `Solution.xml` or an exported solution. State the source and move on.
 - `medium` — inferred (a shared root namespace, a prefix seen in file names, a solution named Core, a README paragraph). Show the evidence and let the user correct it.
 - `none` — ask, as plain text.
 
-Show all six as a table with value, source and confidence, then ask in one plain-text message for what `recommendation.askUserFor` lists. Values the user passed as arguments to this skill are proposals: echo them back for confirmation.
+Show all five as a table with value, source and confidence, then ask in one plain-text message for what `recommendation.askUserFor` lists. Values the user passed as arguments to this skill are proposals: echo them back for confirmation.
 
 | Value | What it is | Rules |
 | --- | --- | --- |
-| `ProjectName` | Short project name. Names the JavaScript form API namespace and the WebResources project | Starts with a letter, letters and digits only |
+| `ProjectName` | Short project name. It is also the root .NET namespace (`<ProjectName>.Common`, `<ProjectName>.<Entity>`), and names the JavaScript form API namespace and the WebResources project. Never ask for a namespace separately | Starts with a letter, letters and digits only |
 | `PublisherUniqueName` | Dataverse publisher **unique** name, not its display name. `pac solution init` needs it to create feature solutions | Letters, digits and underscores |
 | `PublisherPrefix` | Dataverse customization prefix, carried by every component | 2-8 lowercase alphanumeric, starts with a letter, cannot start with `mscrm`. **Permanent**: say this out loud before accepting it |
 | `CoreSolution` | Unique name of the core unmanaged solution in DEV, or `none` when the project has none. Optional: omit it and the scaffold uses `none` | Letters, digits and underscores, no publisher prefix |
-| `RootNamespace` | Root .NET namespace | Valid .NET namespace, dots allowed |
 | `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `CLAUDE.md` | Free text |
 
 - **Core solution.** Most projects have one, but it is not mandatory. Check the proposed name against `environment.solutions`; a name flagged `possiblyTruncated` was cut by `pac solution list`, so confirm it. When `environment.solutionsTruncated` is true, that list holds only the first 100 unmanaged solutions: a core solution missing from it may still exist, so ask rather than conclude it does not. The proposal itself was computed over the full list. `featureSolutionsInEnvironment` lists the per-branch solutions already there: none of them is the core solution.
@@ -117,14 +116,14 @@ Skip this step for a new project.
 
 These differences are not defects in the project, and the harness never retargets a framework, changes a test runner, upgrades a library or moves a folder. The project's version is the rule. After scaffolding (step 7), each deviation is reconciled in the generated docs.
 
-When `layout.folders` deviates, pass `-SkipLayout`: creating `src/Dataverse/Plugins/` next to an existing `source/plugins/` leaves two conventions in one repository. Say which one the project uses.
+When `layout.folders` deviates, pass `-SkipLayout`: creating `src/PowerPlatform/Plugins/` next to an existing `source/plugins/` leaves two conventions in one repository. Say which one the project uses.
 
 ## 6. Confirm once, then write
 
 Run the dry run first and read its output yourself; do not make the user confirm twice:
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -RootNamespace <namespace> -ProjectDescription "<description>" -Json -DryRun <flags>
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -Json -DryRun <flags>
 ```
 
 `<flags>` is exactly what `recommendation.scaffoldArguments` lists — empty for a new project — plus `-SkipLayout` if step 5 decided it. `-Json` keeps the output parseable. The script validates every value, so a bad prefix or name surfaces here, before anything is written.
@@ -135,7 +134,7 @@ Flag rules:
 
 - `-SkipExisting` — existing project, or a folder that already holds some harness files. Writes what is missing, reports what it left alone.
 - `-SkipLayout` — the project already has its own layout.
-- `-SkipCodeProjects` — existing project. The code projects under `src/Dataverse/` (`Dataverse.sln`, the Common plugin library, the WebResources build project) introduce a target framework and a test runner (Vitest); never write them unprompted into an established repository. `recommendation.scaffoldArguments` already includes it when needed. Omit it only when the user explicitly asks for them, having seen the `webresources.buildProject` assessment.
+- `-SkipCodeProjects` — existing project. The code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the Common plugin library, the WebResources build project) introduce a target framework and a test runner (Vitest); never write them unprompted into an established repository. `recommendation.scaffoldArguments` already includes it when needed. Omit it only when the user explicitly asks for them, having seen the `webresources.buildProject` assessment.
 - `-Force` — only when the user has explicitly accepted overwriting the exact files listed. Never combined with `-SkipExisting`; the script rejects that.
 
 Report the warnings in `recommendation.warnings` alongside the dry run. If the script fails, report its output verbatim. Do not hand-edit generated files to work around it.
@@ -145,7 +144,7 @@ Report the warnings in `recommendation.warnings` alongside the dry run. If the s
 `-SkipExisting` keeps the project's `CLAUDE.md`, which means nothing yet points the agent at `docs/agents/development-standards.md` and the whole harness is unreachable. Fix it without paraphrasing: render the templates into a throwaway folder, read the rendered `CLAUDE.md`, and merge its sections into the existing one.
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -RootNamespace <namespace> -ProjectDescription "<description>" -TargetPath <temp folder> -SkipLayout
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -TargetPath <temp folder> -SkipLayout
 ```
 
 Keep the project's own content. Add the harness sections it lacks, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Show the user the diff. If the existing `CLAUDE.md` contradicts a harness rule, report the conflict instead of resolving it silently.
@@ -158,6 +157,8 @@ Existing project only, for every `deviates` assessment and every `unknown` the u
 2. Directly below it, add one line: `Harness recommends <standardLabel>. Upgrade as its own change, never alongside unrelated work.`
 
 The assessment's `guidance` says why the project's choice is the one to keep for now. If the file was skipped because it already existed, do not edit it: report the deviation instead. An assessment with no `targetFile` (e.g. `layout.folders`) has no generated doc to edit: it was handled in step 5 (`-SkipLayout`), not here. List every edit you made.
+
+When `recommendation.warnings` says the project's root namespace is dotted (e.g. `Acme.Crm`), the generated `docs/development/csharp-plugins.md` and `custom-apis.md` use the project name as the namespace instead. Replace `<ProjectName>.` with the project's namespace in those two files; nothing else changes.
 
 ## 8. Git
 

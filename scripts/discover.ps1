@@ -1078,7 +1078,7 @@ $repository = [ordered]@{
     }
 }
 
-foreach ($expected in @('src/Dataverse/Plugins', 'src/Dataverse/CustomAPIs', 'src/Dataverse/WebResources', 'docs/adr')) {
+foreach ($expected in @('src/PowerPlatform/Plugins', 'src/PowerPlatform/CustomAPIs', 'src/PowerPlatform/WebResources', 'docs/adr')) {
     $repository.layout.expected[$expected] = ($inventory.Directories -contains $expected)
 }
 
@@ -1594,9 +1594,9 @@ if ($baseline) {
                 $missingFolders = @($repository.layout.expected.Keys | Where-Object { -not $repository.layout.expected[$_] })
                 $alternatives = @()
                 foreach ($group in @(
-                    @{ Expected = 'src/Dataverse/Plugins'; Found = $repository.layout.actual.pluginFolders },
-                    @{ Expected = 'src/Dataverse/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
-                    @{ Expected = 'src/Dataverse/WebResources'; Found = $repository.layout.actual.webResourceFolders }
+                    @{ Expected = 'src/PowerPlatform/Plugins'; Found = $repository.layout.actual.pluginFolders },
+                    @{ Expected = 'src/PowerPlatform/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
+                    @{ Expected = 'src/PowerPlatform/WebResources'; Found = $repository.layout.actual.webResourceFolders }
                 )) {
                     foreach ($found in @($group.Found)) {
                         if ($found -and $found -notlike "$($group.Expected)*") { $alternatives += "$found (the standard references $($group.Expected))" }
@@ -1793,7 +1793,8 @@ if (-not $publisherPrefixProposal['value'] -and $prefixCandidates.Count -gt 0) {
     $publisherPrefixProposal = New-Proposal -Value $best -Source "Inferred from component file names ($($prefixCandidates[$best]) match(es)). Confirm against the environment: a wrong prefix cannot be undone." -Confidence 'medium' -Alternatives $prefixEvidence
 }
 
-# RootNamespace
+# The project name is also the root .NET namespace. The namespace the existing C# projects share is
+# the best evidence for it, so it is worked out first and feeds the ProjectName proposal below.
 $namespaceProposal = New-Proposal -Value $null -Source 'No C# project declares a namespace' -Confidence 'none'
 # Plugin code carries the namespace the harness extends. Other C# projects (tools, functions) only
 # speak for it when there is no plugin project at all.
@@ -1844,9 +1845,15 @@ $projectNameProposal = New-Proposal -Value $null -Source 'No evidence in the rep
 )
 $solutionFileName = @($dotnet.solutionFiles | Select-Object -First 1)
 if ($namespaceProposal['value']) {
-    $firstSegment = ($namespaceProposal['value'] -split '\.')[0]
-    if ($firstSegment -match '^[A-Za-z][A-Za-z0-9]*$') {
-        $projectNameProposal = New-Proposal -Value $firstSegment -Source 'First segment of the existing root namespace' -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+    $existingNamespace = $namespaceProposal['value']
+    $firstSegment = ($existingNamespace -split '\.')[0]
+    if ($existingNamespace -match '^[A-Za-z][A-Za-z0-9]*$') {
+        $projectNameProposal = New-Proposal -Value $existingNamespace -Source "$($namespaceProposal['source']). The project name is also the root .NET namespace" -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+    }
+    elseif ($firstSegment -match '^[A-Za-z][A-Za-z0-9]*$') {
+        $projectNameProposal = New-Proposal -Value $firstSegment -Source "First segment of the existing root namespace ($existingNamespace)" -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+        # A project name has no dots, so a dotted namespace cannot be carried over as it is.
+        $recommendationWarnings.Add("The existing C# projects use the root namespace $existingNamespace, but the harness uses the project name as the root namespace and a project name cannot contain dots. The generated docs will say $firstSegment.<Entity> and $firstSegment.Common: reconcile them to $existingNamespace after scaffolding.") | Out-Null
     }
 }
 elseif ($solutionFileName) {
@@ -1875,7 +1882,6 @@ $proposedValues = [ordered]@{
     PublisherUniqueName = $publisherUniqueNameProposal
     PublisherPrefix     = $publisherPrefixProposal
     CoreSolution        = $coreProposal
-    RootNamespace       = $namespaceProposal
     ProjectDescription  = $descriptionProposal
 }
 
@@ -1904,13 +1910,13 @@ else {
     if (@($repository.layout.actual.solutionFolders).Count -gt 0 -or @($repository.layout.actual.pluginFolders).Count -gt 0) {
         $recommendation['scaffoldArguments'] += '-SkipLayout'
     }
-    # The code projects under src/Dataverse/ (Dataverse.sln, the Common library, the WebResources
+    # The code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common library, the WebResources
     # build project) introduce a target framework and a test runner (Vitest). Never write them
     # unprompted into an established project: offer them during reconciliation instead, from the
     # webresources.buildProject assessment above, and only add them if the user asks.
     if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout') {
         $recommendation['scaffoldArguments'] += '-SkipCodeProjects'
-        $recommendation['warnings'] += 'This is an existing project: the code projects under src/Dataverse/ (Dataverse.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
+        $recommendation['warnings'] += 'This is an existing project: the code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
     }
     if ($repository.agentDocs.claudeMd) {
         $recommendation['warnings'] += 'CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file rather than overwriting instructions the project already relies on.'

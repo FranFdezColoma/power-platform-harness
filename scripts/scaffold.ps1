@@ -11,8 +11,8 @@
     collision first and aborts without touching the working tree. Use -DryRun to print the
     resulting tree without writing anything.
 
-    Also creates the code projects under src/Dataverse/: Dataverse.sln, the shared
-    <RootNamespace>.Common plugin library (PluginBase.cs) and the WebResources build project (an
+    Also creates the code projects under src/PowerPlatform/: PowerPlatform.sln, the shared
+    <ProjectName>.Common plugin library (PluginBase.cs) and the WebResources build project (an
     SDK-style .esproj with Vitest + ESLint tooling), unless -SkipLayout or -SkipCodeProjects is
     supplied.
 
@@ -24,23 +24,23 @@
       - -Force:        overwrite. Only after the caller has looked at what is being replaced.
 
     Run scripts/discover.ps1 first to find out which of the three applies, and to read the
-    publisher, prefix, core solution and namespace a project already uses.
+    publisher, prefix, core solution and project name a project already uses.
 
 .EXAMPLE
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
-        -PublisherPrefix nwc -CoreSolution NorthwindCore -RootNamespace Northwind
+        -PublisherPrefix nwc -CoreSolution NorthwindCore
         -ProjectDescription 'Customer Service implementation for Northwind.' -DryRun
 
 .EXAMPLE
     # No core solution: every component lives in the feature solution of its branch.
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
-        -PublisherPrefix nwc -RootNamespace Northwind
+        -PublisherPrefix nwc
         -ProjectDescription 'Customer Service implementation for Northwind.' -TargetPath C:\repos\northwind
 
 .EXAMPLE
     # Adopt the harness into an existing repository: add the missing docs, touch nothing else.
     ./scripts/scaffold.ps1 -ProjectName Acme -PublisherUniqueName AcmeConsulting -PublisherPrefix acme
-        -CoreSolution AcmeCore -RootNamespace Acme.Crm -ProjectDescription 'Customer Service for Acme.'
+        -CoreSolution AcmeCore -ProjectDescription 'Customer Service for Acme.'
         -TargetPath C:\repos\acme -SkipExisting -SkipLayout -Json
 #>
 [CmdletBinding()]
@@ -53,9 +53,6 @@ param(
 
     [Parameter(Mandatory = $true)]
     [string]$PublisherPrefix,
-
-    [Parameter(Mandatory = $true)]
-    [string]$RootNamespace,
 
     [Parameter(Mandatory = $true)]
     [string]$ProjectDescription,
@@ -74,12 +71,12 @@ param(
     # instead of aborting on the first collision. An existing CLAUDE.md is the usual reason.
     [switch]$SkipExisting,
 
-    # Do not create the src/Dataverse/ and docs/adr/ folders. An existing project already has a
+    # Do not create the src/PowerPlatform/ and docs/adr/ folders. An existing project already has a
     # layout; adding a second one next to it leaves two conventions in one repository.
     [switch]$SkipLayout,
 
-    # Do not create the code projects under src/Dataverse/: Dataverse.sln, the shared Common plugin
-    # library and the WebResources build project (.esproj + package.json + Vitest/ESLint config).
+    # Do not create the code projects under src/PowerPlatform/: PowerPlatform.sln, the shared Common
+    # plugin library and the WebResources build project (.esproj + package.json + Vitest/ESLint config).
     # Use for an existing project: they introduce a target framework and a test runner, and the
     # harness must never impose either on a project that has not already chosen them. -SkipLayout
     # implies this.
@@ -107,15 +104,15 @@ if ($Force -and $SkipExisting) {
 # Folders the standards expect to exist. Git does not track empty folders, so each one that no
 # template file lands in gets a .gitkeep.
 $keepDirectories = @(
-    'src/Dataverse/Plugins'
-    'src/Dataverse/CustomAPIs'
-    'src/Dataverse/WebResources'
+    'src/PowerPlatform/Plugins'
+    'src/PowerPlatform/CustomAPIs'
+    'src/PowerPlatform/WebResources'
     'docs/adr'
 )
 
 # The WebResources build project's own source folders. Empty until the first web resource is
 # added, so each one needs a .gitkeep like $keepDirectories above.
-$webResourcesProjectFolder = "src/Dataverse/WebResources/$ProjectName.WebResources"
+$webResourcesProjectFolder = "src/PowerPlatform/WebResources/$ProjectName.WebResources"
 $webResourcesKeepDirectories = @(
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/js"
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/html"
@@ -145,7 +142,7 @@ function Assert-Value {
 # Validate every value before touching the working tree: a rejected prefix after a partial copy
 # would leave a half-scaffolded repository behind.
 Assert-Value -Name 'ProjectName' -Value $ProjectName -Pattern '^[A-Za-z][A-Za-z0-9]*$' `
-    -Requirement 'It names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
+    -Requirement 'It is the root .NET namespace and names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
 
 Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
     -Requirement 'Use the publisher unique name, not its display name: pac solution init needs it to create feature solutions. Letters, digits and underscores only.'
@@ -160,9 +157,6 @@ if ($PublisherPrefix.StartsWith('mscrm')) {
 
 Assert-Value -Name 'CoreSolution' -Value $CoreSolution -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
     -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution."
-
-Assert-Value -Name 'RootNamespace' -Value $RootNamespace -Pattern '^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$' `
-    -Requirement 'It must be a valid .NET namespace, optionally dotted.'
 
 Assert-Value -Name 'ProjectDescription' -Value $ProjectDescription `
     -Requirement 'One or two sentences describing what the project delivers. It becomes the Description section of CLAUDE.md.'
@@ -186,7 +180,6 @@ $tokens = [ordered]@{
     '{{publisher_unique_name}}' = $PublisherUniqueName
     '{{publisher_prefix}}'      = $PublisherPrefix
     '{{core_solution}}'         = $CoreSolution
-    '{{root_namespace}}'        = $RootNamespace
     '{{project_description}}'   = $ProjectDescription
 }
 
@@ -218,11 +211,11 @@ if (-not $plannedFiles) {
     Stop-WithError "No template files found under $templatesRoot."
 }
 
-# The code projects (everything under src/Dataverse/: the solution, the Common library and the
+# The code projects (everything under src/PowerPlatform/: the solution, the Common library and the
 # WebResources project) are planned separately: -SkipLayout suppresses them because they assume the
-# standard src/Dataverse layout, and -SkipCodeProjects suppresses them on its own, for an existing
+# standard src/PowerPlatform layout, and -SkipCodeProjects suppresses them on its own, for an existing
 # project that has not chosen this framework and tooling.
-$codeProjectsPattern = '^src/Dataverse/'
+$codeProjectsPattern = '^src/PowerPlatform/'
 $codeProjectFiles = @($plannedFiles | Where-Object { $_.Relative -match $codeProjectsPattern })
 $plannedFiles = @($plannedFiles | Where-Object { $_.Relative -notmatch $codeProjectsPattern })
 
@@ -297,7 +290,6 @@ function Write-Report {
                 publisherUniqueName = $PublisherUniqueName
                 publisherPrefix     = $PublisherPrefix
                 coreSolution        = $CoreSolution
-                rootNamespace       = $RootNamespace
                 projectDescription  = $ProjectDescription
             }
             mode        = [ordered]@{
@@ -438,5 +430,4 @@ if (-not $Json) {
     Write-Host "Project:   $ProjectName" -ForegroundColor Cyan
     Write-Host "Publisher: $PublisherUniqueName ($PublisherPrefix)" -ForegroundColor Cyan
     Write-Host "Core:      $CoreSolution" -ForegroundColor Cyan
-    Write-Host "Namespace: $RootNamespace" -ForegroundColor Cyan
 }

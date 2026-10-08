@@ -10,7 +10,7 @@ Read `docs/agents/development-standards.md` first, then `docs/development/csharp
 
 ## Project
 
-- Each Custom API implementation is its own project: `src/Dataverse/CustomAPIs/{{root_namespace}}.<ApiName>/`, with its test project `{{root_namespace}}.<ApiName>.Tests` next to it, both in the `CustomAPIs` solution folder of `Dataverse.sln`. It references `{{root_namespace}}.Common` like any plugin project.
+- Each Custom API implementation is its own project: `src/PowerPlatform/CustomAPIs/{{project_name}}.<ApiName>/`, with its test project `{{project_name}}.<ApiName>.Tests` next to it, both in the `CustomAPIs` solution folder of `PowerPlatform.sln`. It references `{{project_name}}.Common` like any plugin project.
 
 ## Definition
 
