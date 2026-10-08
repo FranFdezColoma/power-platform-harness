@@ -963,15 +963,28 @@ $files = $inventory.Files
 # that drifts the next time a standards file is added.
 $harnessFiles = @()
 if (Test-Path -LiteralPath $templatesRoot) {
-    $harnessFiles = @(Get-ChildItem -LiteralPath $templatesRoot -Recurse -File -Force |
-        ForEach-Object { $_.FullName.Substring((Resolve-Path -LiteralPath $templatesRoot).Path.Length).TrimStart('\', '/') -replace '\\', '/' })
+    $templatesRootFull = (Resolve-Path -LiteralPath $templatesRoot).Path
+    $harnessFiles = @(Get-ChildItem -LiteralPath $templatesRootFull -Recurse -File -Force |
+        ForEach-Object { $_.FullName.Substring($templatesRootFull.Length).TrimStart('\', '/') -replace '\\', '/' } |
+        # Build output an IDE leaves inside templates/ is never scaffolded: same filter as scaffold.ps1.
+        Where-Object { $_ -notmatch '(^|/)(bin|obj|node_modules)/' })
 }
 else {
     $notes.Add("templates/ was not found at $templatesRoot; the plugin installation looks incomplete.") | Out-Null
 }
 
-$present = @($harnessFiles | Where-Object { $files -contains $_ })
-$missing = @($harnessFiles | Where-Object { $files -notcontains $_ })
+# A template path can carry a token ({{project_name}}.Common), and the values are not known yet: a
+# scaffolded Northwind.Common satisfies it. Each token matches one path segment's worth of name.
+$present = New-Object System.Collections.Generic.List[string]
+$missing = New-Object System.Collections.Generic.List[string]
+foreach ($harnessFile in $harnessFiles) {
+    $pattern = '^' + ([regex]::Escape($harnessFile) -replace '\\\{\\\{[a-z_]+}}', '[A-Za-z_][A-Za-z0-9_]*') + '$'
+    $found = @($files | Where-Object { $_ -cmatch $pattern })
+    if ($found.Count -gt 0) { $found | ForEach-Object { $present.Add($_) } }
+    else { $missing.Add($harnessFile) }
+}
+$present = @($present)
+$missing = @($missing)
 
 # The three files the harness cannot merge into silently. .gitignore is excluded on purpose: an
 # existing .gitignore is a collision to resolve, not evidence that the harness is installed.
@@ -1444,7 +1457,9 @@ if ($baseline) {
                     # The project files decide. A key file lying in the repository is evidence worth
                     # showing, but signs nothing unless a project uses it.
                     $signed = @($pluginProjects | Where-Object { $_.signAssembly })
-                    $snkFiles = @(Select-Files -Files $files -Pattern '(?i)\.snk$' -Limit 10)
+                    # Select-Files already returns an array; wrapping it in @() would turn an empty
+                    # result into a one-element array and report key files that do not exist.
+                    $snkFiles = Select-Files -Files $files -Pattern '(?i)\.snk$' -Limit 10
                     $status = if ($signed.Count -eq 0) { 'match' } else { 'deviates' }
                     $detail = $null
                     if ($status -eq 'match' -and $snkFiles.Count -gt 0) { $detail = 'Key files exist in the repository, but no plugin project signs with one.' }
@@ -1907,14 +1922,19 @@ if ($classification -eq 'greenfield') {
 }
 else {
     $recommendation['scaffoldArguments'] = @('-SkipExisting')
-    if (@($repository.layout.actual.solutionFolders).Count -gt 0 -or @($repository.layout.actual.pluginFolders).Count -gt 0) {
+    # Only a layout of the project's own suppresses the standard one. src/PowerPlatform/Plugins is the
+    # standard layout itself: a repository the harness scaffolded must not be told to skip it.
+    $ownPluginFolders = @($repository.layout.actual.pluginFolders | Where-Object { $_ -notlike 'src/PowerPlatform/*' })
+    if (@($repository.layout.actual.solutionFolders).Count -gt 0 -or $ownPluginFolders.Count -gt 0) {
         $recommendation['scaffoldArguments'] += '-SkipLayout'
     }
     # The code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common library, the WebResources
     # build project) introduce a target framework and a test runner (Vitest). Never write them
     # unprompted into an established project: offer them during reconciliation instead, from the
-    # webresources.buildProject assessment above, and only add them if the user asks.
-    if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout') {
+    # webresources.buildProject assessment above, and only add them if the user asks. A repository
+    # that already has the harness's PowerPlatform.sln chose them already: -SkipExisting is enough.
+    $hasHarnessCodeProjects = $files -contains 'src/PowerPlatform/PowerPlatform.sln'
+    if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout' -and -not $hasHarnessCodeProjects) {
         $recommendation['scaffoldArguments'] += '-SkipCodeProjects'
         $recommendation['warnings'] += 'This is an existing project: the code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
     }
