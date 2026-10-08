@@ -81,6 +81,16 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Name the environment before any operation against it (`pac org who`). Treat any environment you have not verified as production.
 - Write operations are permitted in DEV only, with `pac` or the Dataverse MCP server, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
 
+## Agent permissions
+
+`.claude/settings.json` enforces part of the rules above, so they hold even when an instruction is missed:
+
+- **Denied**: deleting a solution, a connection or an environment, resetting, restoring or copying an environment, applying a solution upgrade, deleting records, tables or skills through the Dataverse MCP server, and rewriting git history (`git push --force`, `git reset --hard`, `git clean`, `git branch -D`). Prepare the command and hand it to the developer.
+- **Asks every time**: `scripts/new-feature.ps1`, `pac solution import` and deployments. They create things in an environment.
+- **Allowed without asking**: reading the environment (`pac org who`, `pac solution list`, `pac env fetch`), and building, testing and linting (`dotnet build`, `dotnet test`, `npm test`, `npm run lint`).
+
+These rules match the commands as the agent writes them. They are a guard against mistakes, not a security boundary: never try to reach a denied operation another way (a different spelling, a script, a subshell). The allowed list applies only after the developer accepts the workspace trust prompt the first time Claude Code opens the repository; the denied list applies from the start. Personal additions go in `.claude/settings.local.json`, which is not committed. Never weaken the shared file to get past a block.
+
 ## Reporting
 
 - Report what you could not run, and why, alongside what you did run. A failing test is reported with its output, never summarised as an obstacle.

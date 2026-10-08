@@ -17,6 +17,8 @@ It is not a Power Platform project: nothing here is deployed to Dataverse. The s
 | `scripts/standards-baseline.json` | Every version, framework and layout decision the templates assert, plus the machine requirements, and where each is asserted |
 | `scripts/scaffold.ps1` | Deterministic copy + token substitution. The only thing that writes files |
 | `templates/` | Content shipped verbatim into every scaffolded project |
+| `templates/scripts/new-feature.ps1` | Shipped to every project: creates a branch and its feature solution. It writes to Dataverse, unlike the plugin's own scripts |
+| `templates/.claude/settings.json` | Shipped to every project: permission rules that enforce the irreversible-operation rules in the standards |
 
 The split matters: `discover.ps1` never writes, `scaffold.ps1` never asks, and the skill never
 generates content that belongs in a template. A change that blurs one of those is the wrong change.
@@ -99,6 +101,12 @@ pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
 
 Both scripts must also run under Windows PowerShell 5.1, which the generated projects may be
 stuck on: no `??`, no ternary, no `ForEach-Object -Parallel`, and no `ProcessStartInfo.ArgumentList`.
+The same holds for `templates/scripts/new-feature.ps1`, which must also stay ASCII-only: 5.1 reads
+a UTF-8 file without a BOM as ANSI. Check it with `-DryRun` in a scaffolded repository: the dry run
+only reads the environment.
+
+A rule added to `templates/.claude/settings.json` needs both a `Bash(...)` and a `PowerShell(...)`
+form: on Windows the agent may run the same command through either tool.
 
 Then bump `version` in `.claude-plugin/plugin.json`: installed plugins update by version.
 

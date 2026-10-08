@@ -22,6 +22,8 @@ Install:
 - Node.js 24: `winget install --id OpenJS.NodeJS.LTS --source winget`, or a version manager such as `nvm`
 - `pac`: `dotnet tool install --global Microsoft.PowerApps.CLI.Tool`
 
+`scripts/new-feature.ps1` runs on either PowerShell and needs git and, for the feature solution, `pac`.
+
 `pac` also needs an authentication profile against DEV: `pac auth create --environment <dev-url>`, then `pac org who` to confirm which environment it points at. `pac pcf init` and `pac modelbuilder` generate project structure and early-bound classes; there is no acceptable manual equivalent. Never hand-write what these commands generate. Plugin projects are the exception: they are not created with `pac plugin init`, but from the `.csproj` in `docs/development/csharp-plugins.md`.
 
 ## Recommended
