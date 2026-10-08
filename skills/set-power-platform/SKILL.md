@@ -9,7 +9,7 @@ allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discove
 
 Two jobs, decided by what is already in the folder:
 
-- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
+- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `.claude/settings.json` (permission rules), `scripts/new-feature.ps1` (branch + feature solution), `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
 - **Existing project** — adopt the harness into it: add only what is missing, keep what the project already has, and adapt the standards to the stack the project actually uses. Never set a version, framework or layout the project does not use.
 
 Two bundled scripts do the work. `discover.ps1` reads; `scaffold.ps1` writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
@@ -149,6 +149,10 @@ pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName 
 
 Keep the project's own content. Add the harness sections it lacks, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Show the user the diff. If the existing `CLAUDE.md` contradicts a harness rule, report the conflict instead of resolving it silently.
 
+### When `.claude/settings.json` was skipped
+
+The project keeps its own permission rules, so none of the harness's reach it. From the same throwaway render, merge the rendered `.claude/settings.json` into the existing one: add each `deny`, `ask` and `allow` rule it lacks, keep every rule and setting the project already has, and remove nothing. A project rule that allows what the harness denies is a conflict: report it, do not resolve it. Show the user the diff.
+
 ## 7. Reconcile the generated docs
 
 Existing project only, for every `deviates` assessment and every `unknown` the user answered. Edit the generated file named in the assessment's `targetFile`, in the target repository — never this plugin's `templates/`:
@@ -178,6 +182,7 @@ Then, as a list the user can act on:
 3. **Publisher** — if it does not exist in DEV yet, create it with unique name `<PublisherUniqueName>` and prefix `<PublisherPrefix>`. A human does this.
 4. **Core solution** — if `<CoreSolution>` is not `none` and does not exist in DEV yet, create it under that publisher. A human does this.
 5. **Recommended upgrades** — for an existing project, the deviations reconciled in step 7, as the team's upgrade backlog.
-6. Read `docs/agents/development-standards.md` before the first change.
+6. **Workspace trust** — the permission rules in `.claude/settings.json` that allow read-only checks apply only after each developer accepts Claude Code's trust prompt for the repository; the rules that deny irreversible operations apply from the start.
+7. Read `docs/agents/development-standards.md` before the first change.
 
-End with one sentence on how work starts from now on: every feature, fix or chore goes on its own branch with its own feature solution named after it, and the agent asks which branch before the first change. `docs/development/solutions.md` has the flow.
+End with one sentence on how work starts from now on: every feature, fix or chore goes on its own branch, created with its feature solution by `scripts/new-feature.ps1`, and the agent asks which branch before the first change. `docs/development/solutions.md` has the flow.

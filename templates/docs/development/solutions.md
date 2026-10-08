@@ -27,42 +27,37 @@ Before writing any code or touching any component, settle where the work lives. 
 
 - **Current branch** — continue. If it has a feature solution, components go into it.
 - **Current branch is the trunk** (`main`, `master`, or the repository's default branch) — it has no feature solution. If the core solution exists, say that the change lands in the core solution alone, and continue. If the core solution is `none`, there is no solution to put a component in: ask for a new branch instead.
-- **New branch** — derive the names, create the branch, then create the feature solution. Never skip the question because the intent seems obvious.
+- **New branch** — create the branch and its feature solution with `scripts/new-feature.ps1`, below. Never skip the question because the intent seems obvious.
 
 ### Names
 
-Derive both names from one answer, so the branch and the solution can never drift apart:
+Both names come from one answer, so the branch and the solution can never drift apart:
 
 | Thing | Rule | Example |
 | --- | --- | --- |
-| Branch | `<type>/<short-description>`, type is `feature`, `fix` or `chore` | `feature/lead-scoring-widget` |
-| Feature solution | `<type>_<ShortDescriptionInPascalCase>` | `feature_LeadScoringWidget` |
+| Branch | `<type>/<short-description>`, type is `feature`, `fix` or `chore`, description in kebab-case | `feature/lead-scoring-widget` |
+| Feature solution | `<type>_<ShortDescriptionInPascalCase>`, at most 65 characters | `feature_LeadScoringWidget` |
 
-Propose the branch name from what the user asked for and confirm it before creating anything: the solution unique name follows it and cannot be renamed afterwards.
+Propose the short description from what the user asked for and confirm it before creating anything: the solution unique name follows it and cannot be renamed afterwards.
 
-### Create the branch
+### Create the branch and the feature solution
 
-Offer both, and let the user choose:
-
-- **Checkout** — `git switch -c <type>/<short-description>`. The default.
-- **Worktree** — `git worktree add -b <type>/<short-description> ../<repo>.worktrees/<type>/<short-description>`, then continue inside it. Recommend it when another session is working in this folder: switching its branch underneath it loses work.
-
-### Create the feature solution
-
-`pac` has no command that creates a solution in Dataverse — `pac solution init` only scaffolds a local project. The sequence below is the whole creation path; run it in a throwaway folder, never inside the repository.
+`scripts/new-feature.ps1` is the only way to do this. Never run the `pac solution init`, `pack` and `import` sequence by hand: the script exists because each manual step is a chance to get the name, the version or the publisher wrong, and none of them can be corrected afterwards.
 
 ```bash
-pac solution init --publisher-name {{publisher_unique_name}} --publisher-prefix {{publisher_prefix}} --outputDirectory <temp>/<type>_<Name>
-# pac solution init writes version 1.0; every solution starts at 1.0.0.0
-pwsh -NoProfile -Command "(Get-Content -Raw '<temp>/<type>_<Name>/src/Other/Solution.xml') -replace '<Version>1\.0</Version>', '<Version>1.0.0.0</Version>' | Set-Content -NoNewline '<temp>/<type>_<Name>/src/Other/Solution.xml'"
-pac solution pack --folder <temp>/<type>_<Name>/src --zipfile <temp>/<type>_<Name>.zip --packagetype Unmanaged
-pac solution import --path <temp>/<type>_<Name>.zip --publish-changes
+pwsh -NoProfile -File scripts/new-feature.ps1 -Type <feature|fix|chore> -Name <short-description> -DryRun
+pwsh -NoProfile -File scripts/new-feature.ps1 -Type <feature|fix|chore> -Name <short-description>
 ```
 
-- Every solution is created at version `1.0.0.0` (`major.minor.build.revision`). `pac solution init` writes `1.0` and `pac solution version` only changes build and revision, so set the version in `Solution.xml` before packing, as above. Check that it reads `<Version>1.0.0.0</Version>` before importing.
-- With the Dataverse MCP server and no working `pac` authentication, create the `solution` record through the server instead: same unique name, the publisher above, version `1.0.0.0`.
-- Creating a solution is a human decision. Show the commands and the resolved names, ask, and only then run them. Never as a side effect of another task.
-- Report the created solution and verify that it exists: `pac solution list`, or the same query through the MCP server.
+- Run the dry run first and show the user its plan: branch, feature solution, publisher and environment. Creating a solution is a human decision: run the real command only after they confirm, never as a side effect of another task.
+- The dry run checks everything before anything is changed: the branch does not exist yet, `pac` points at an environment that does not look like production or test, publisher `{{publisher_unique_name}}` exists there with prefix `{{publisher_prefix}}`, and no solution already has that unique name. When a check fails, report its message as is; do not work around it.
+- Offer both ways of creating the branch, and let the user choose:
+  - **Checkout** — the default. Uncommitted changes move to the new branch.
+  - **Worktree** — add `-Worktree`: the branch is created in `../<repo>.worktrees/<type>/<short-description>`; continue inside it. Recommend it when another session is working in this folder: switching its branch underneath it loses work.
+- Work that creates or modifies no Dataverse component (a dependency bump, a code-only refactor) needs no feature solution: add `-SkipSolution` to create only the branch.
+- The script creates the solution at version `1.0.0.0`, unmanaged, under the publisher above, then reads it back from the environment to confirm. It does not publish customizations: publishing in a shared DEV would publish every colleague's unpublished work along with it.
+- If the import fails after the branch was created, fix the cause and re-run the same command from that branch: it keeps the branch and retries only the solution.
+- Without `pac` but with the Dataverse MCP server, create the `solution` record through the server instead: same unique name, publisher `{{publisher_unique_name}}`, version `1.0.0.0`. Then confirm it with the same query through the server.
 
 ## Which solution a component goes into
 

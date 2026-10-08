@@ -39,6 +39,9 @@ Then, in the folder you want to set up:
 ```
 CLAUDE.md                                # points the agent at the standards
 .gitignore                               # .NET, PCF and secrets hygiene
+.claude/settings.json                    # denies irreversible operations, allows read-only checks
+scripts/
+└── new-feature.ps1                      # creates a branch and its feature solution in DEV
 docs/
 ├── agents/
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
@@ -134,6 +137,21 @@ first change. When the work touches Dataverse, it gets a feature solution named 
 and also added to the core solution when the project has one; on the trunk they go to the core
 solution alone. The agent writes in DEV only, with `pac` or the Dataverse MCP server, and leaves
 irreversible operations — and creating the publisher or the core solution — to a human.
+
+The branch and its feature solution are created together by the generated
+`scripts/new-feature.ps1`, never by hand. It derives both names from one short description,
+checks that `pac` points at DEV, that the publisher exists with the right prefix and that the name
+is free, and only then creates the branch and the solution, at version `1.0.0.0`:
+
+```powershell
+pwsh -NoProfile -File scripts/new-feature.ps1 -Type feature -Name lead-scoring -DryRun
+```
+
+The generated `.claude/settings.json` turns part of the standards into permission rules: deleting
+solutions, environments or records and rewriting git history are denied, creating solutions asks
+every time, and reading the environment, building, testing and linting run without a prompt. The
+allowed list takes effect once the developer accepts Claude Code's workspace trust prompt for the
+repository.
 
 ## Run the scripts without Claude Code
 
