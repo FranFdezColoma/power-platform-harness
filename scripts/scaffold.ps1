@@ -11,7 +11,7 @@
     collision first and aborts without touching the working tree. Use -DryRun to print the
     resulting tree without writing anything.
 
-    Also creates the code projects under src/Dataverse/: Dataverse.sln, the shared
+    Also creates the code projects under src/PowerPlatform/: PowerPlatform.sln, the shared
     <ProjectName>.Common plugin library (PluginBase.cs) and the WebResources build project (an
     SDK-style .esproj with Vitest + ESLint tooling), unless -SkipLayout or -SkipCodeProjects is
     supplied.
@@ -71,12 +71,12 @@ param(
     # instead of aborting on the first collision. An existing CLAUDE.md is the usual reason.
     [switch]$SkipExisting,
 
-    # Do not create the src/Dataverse/ and docs/adr/ folders. An existing project already has a
+    # Do not create the src/PowerPlatform/ and docs/adr/ folders. An existing project already has a
     # layout; adding a second one next to it leaves two conventions in one repository.
     [switch]$SkipLayout,
 
-    # Do not create the code projects under src/Dataverse/: Dataverse.sln, the shared Common plugin
-    # library and the WebResources build project (.esproj + package.json + Vitest/ESLint config).
+    # Do not create the code projects under src/PowerPlatform/: PowerPlatform.sln, the shared Common
+    # plugin library and the WebResources build project (.esproj + package.json + Vitest/ESLint config).
     # Use for an existing project: they introduce a target framework and a test runner, and the
     # harness must never impose either on a project that has not already chosen them. -SkipLayout
     # implies this.
@@ -104,15 +104,15 @@ if ($Force -and $SkipExisting) {
 # Folders the standards expect to exist. Git does not track empty folders, so each one that no
 # template file lands in gets a .gitkeep.
 $keepDirectories = @(
-    'src/Dataverse/Plugins'
-    'src/Dataverse/CustomAPIs'
-    'src/Dataverse/WebResources'
+    'src/PowerPlatform/Plugins'
+    'src/PowerPlatform/CustomAPIs'
+    'src/PowerPlatform/WebResources'
     'docs/adr'
 )
 
 # The WebResources build project's own source folders. Empty until the first web resource is
 # added, so each one needs a .gitkeep like $keepDirectories above.
-$webResourcesProjectFolder = "src/Dataverse/WebResources/$ProjectName.WebResources"
+$webResourcesProjectFolder = "src/PowerPlatform/WebResources/$ProjectName.WebResources"
 $webResourcesKeepDirectories = @(
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/js"
     "$webResourcesProjectFolder/${PublisherPrefix}_/src/html"
@@ -211,11 +211,11 @@ if (-not $plannedFiles) {
     Stop-WithError "No template files found under $templatesRoot."
 }
 
-# The code projects (everything under src/Dataverse/: the solution, the Common library and the
+# The code projects (everything under src/PowerPlatform/: the solution, the Common library and the
 # WebResources project) are planned separately: -SkipLayout suppresses them because they assume the
-# standard src/Dataverse layout, and -SkipCodeProjects suppresses them on its own, for an existing
+# standard src/PowerPlatform layout, and -SkipCodeProjects suppresses them on its own, for an existing
 # project that has not chosen this framework and tooling.
-$codeProjectsPattern = '^src/Dataverse/'
+$codeProjectsPattern = '^src/PowerPlatform/'
 $codeProjectFiles = @($plannedFiles | Where-Object { $_.Relative -match $codeProjectsPattern })
 $plannedFiles = @($plannedFiles | Where-Object { $_.Relative -notmatch $codeProjectsPattern })
 

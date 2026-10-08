@@ -1078,7 +1078,7 @@ $repository = [ordered]@{
     }
 }
 
-foreach ($expected in @('src/Dataverse/Plugins', 'src/Dataverse/CustomAPIs', 'src/Dataverse/WebResources', 'docs/adr')) {
+foreach ($expected in @('src/PowerPlatform/Plugins', 'src/PowerPlatform/CustomAPIs', 'src/PowerPlatform/WebResources', 'docs/adr')) {
     $repository.layout.expected[$expected] = ($inventory.Directories -contains $expected)
 }
 
@@ -1594,9 +1594,9 @@ if ($baseline) {
                 $missingFolders = @($repository.layout.expected.Keys | Where-Object { -not $repository.layout.expected[$_] })
                 $alternatives = @()
                 foreach ($group in @(
-                    @{ Expected = 'src/Dataverse/Plugins'; Found = $repository.layout.actual.pluginFolders },
-                    @{ Expected = 'src/Dataverse/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
-                    @{ Expected = 'src/Dataverse/WebResources'; Found = $repository.layout.actual.webResourceFolders }
+                    @{ Expected = 'src/PowerPlatform/Plugins'; Found = $repository.layout.actual.pluginFolders },
+                    @{ Expected = 'src/PowerPlatform/CustomAPIs'; Found = $repository.layout.actual.customApiFolders },
+                    @{ Expected = 'src/PowerPlatform/WebResources'; Found = $repository.layout.actual.webResourceFolders }
                 )) {
                     foreach ($found in @($group.Found)) {
                         if ($found -and $found -notlike "$($group.Expected)*") { $alternatives += "$found (the standard references $($group.Expected))" }
@@ -1910,13 +1910,13 @@ else {
     if (@($repository.layout.actual.solutionFolders).Count -gt 0 -or @($repository.layout.actual.pluginFolders).Count -gt 0) {
         $recommendation['scaffoldArguments'] += '-SkipLayout'
     }
-    # The code projects under src/Dataverse/ (Dataverse.sln, the Common library, the WebResources
+    # The code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common library, the WebResources
     # build project) introduce a target framework and a test runner (Vitest). Never write them
     # unprompted into an established project: offer them during reconciliation instead, from the
     # webresources.buildProject assessment above, and only add them if the user asks.
     if ($recommendation['scaffoldArguments'] -notcontains '-SkipLayout') {
         $recommendation['scaffoldArguments'] += '-SkipCodeProjects'
-        $recommendation['warnings'] += 'This is an existing project: the code projects under src/Dataverse/ (Dataverse.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
+        $recommendation['warnings'] += 'This is an existing project: the code projects under src/PowerPlatform/ (PowerPlatform.sln, the Common plugin library and the WebResources build project with Vitest/ESLint) are never added automatically. Report the webresources.buildProject assessment and add them only if the user asks.'
     }
     if ($repository.agentDocs.claudeMd) {
         $recommendation['warnings'] += 'CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file rather than overwriting instructions the project already relies on.'

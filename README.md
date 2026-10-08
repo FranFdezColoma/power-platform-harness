@@ -52,8 +52,8 @@ docs/
 │   ├── dataverse-schema.md              # tables, columns, relationships
 │   └── solutions.md                     # feature solution per branch, DEV rules
 └── adr/                                 # architecture decision records
-src/Dataverse/
-├── Dataverse.sln                        # Plugins, CustomAPIs and WebResources solution folders
+src/PowerPlatform/
+├── PowerPlatform.sln                    # Plugins, CustomAPIs and WebResources solution folders
 ├── Plugins/
 │   └── <Project>.Common/                # PluginBase.cs, early-bound classes, shared helpers
 ├── CustomAPIs/
@@ -179,9 +179,9 @@ empty:
 | `-SkipExisting` | Write what is missing, leave every existing file untouched. Idempotent |
 | `-Force` | Overwrite. Rejected together with `-SkipExisting` |
 
-`-SkipLayout` suppresses the `src/Dataverse/` and `docs/adr/` folders, for a project that already
-has its own layout. `-SkipCodeProjects` leaves out the projects under `src/Dataverse/`:
-`Dataverse.sln`, the Common library and the WebResources project. `-Json` emits a parseable
+`-SkipLayout` suppresses the `src/PowerPlatform/` and `docs/adr/` folders, for a project that already
+has its own layout. `-SkipCodeProjects` leaves out the projects under `src/PowerPlatform/`:
+`PowerPlatform.sln`, the Common library and the WebResources project. `-Json` emits a parseable
 summary of what was created, skipped and overwritten.
 
 ## Contributing

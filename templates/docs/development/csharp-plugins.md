@@ -6,12 +6,12 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Target .NET Framework 4.6.2.
 - Use SDK-style projects and deploy as Dataverse `.nupkg` plug-in packages.
 - Do not strong-name assemblies. No `.snk`; `<SignAssembly>false</SignAssembly>`.
-- Generate early-bound classes with `pac modelbuilder build --namespace {{project_name}}.Common.Generated --outdirectory src/Dataverse/Plugins/{{project_name}}.Common/Generated`. Without `--namespace` the classes land in the global namespace. Never edit generated files manually.
+- Generate early-bound classes with `pac modelbuilder build --namespace {{project_name}}.Common.Generated --outdirectory src/PowerPlatform/Plugins/{{project_name}}.Common/Generated`. Without `--namespace` the classes land in the global namespace. Never edit generated files manually.
 - Tests: xUnit 2.9.3 + FakeXrmEasy.Plugins.v9 2.9.4. Add FakeXrmEasy.Messages.v9 2.9.4 only when message/Custom API simulation requires it.
 
 ## Projects
-- All Dataverse code lives under `src/Dataverse/`, in `Dataverse.sln`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `Dataverse.sln` of the same name, and every project is nested in the solution folder that matches its physical folder.
-- One plugin project per table: `src/Dataverse/Plugins/{{project_name}}.<Entity>/{{project_name}}.<Entity>.csproj`, e.g. `{{project_name}}.Account`. Each one is its own plug-in package. Do not use `pac plugin init`: it adds `.vscode/`, `.gitignore`, `PluginBase.cs` and `Plugin1.cs` that the project does not want. Write the `.csproj` as below, replacing `<Entity>`, and nothing else; `Microsoft.PowerApps.MSBuild.Plugin` produces the `.nupkg` on `dotnet build`:
+- All Power Platform code lives under `src/PowerPlatform/`, in `PowerPlatform.sln`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `PowerPlatform.sln` of the same name, and every project is nested in the solution folder that matches its physical folder.
+- One plugin project per table: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>/{{project_name}}.<Entity>.csproj`, e.g. `{{project_name}}.Account`. Each one is its own plug-in package. Do not use `pac plugin init`: it adds `.vscode/`, `.gitignore`, `PluginBase.cs` and `Plugin1.cs` that the project does not want. Write the `.csproj` as below, replacing `<Entity>`, and nothing else; `Microsoft.PowerApps.MSBuild.Plugin` produces the `.nupkg` on `dotnet build`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -39,9 +39,9 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 
 </Project>
 ```
-- Each plugin project has exactly one test project, next to it: `src/Dataverse/Plugins/{{project_name}}.<Entity>.Tests/`. There is no separate `tests/` tree.
-- `src/Dataverse/Plugins/{{project_name}}.Common/` is the shared library: `PluginBase.cs`, the early-bound classes and helpers used by more than one project. It holds no plugin classes and is not registered in Dataverse.
-- Add every new project to `Dataverse.sln` in its solution folder: `dotnet sln src/Dataverse/Dataverse.sln add <csproj> --solution-folder Plugins`.
+- Each plugin project has exactly one test project, next to it: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>.Tests/`. There is no separate `tests/` tree.
+- `src/PowerPlatform/Plugins/{{project_name}}.Common/` is the shared library: `PluginBase.cs`, the early-bound classes and helpers used by more than one project. It holds no plugin classes and is not registered in Dataverse.
+- Add every new project to `PowerPlatform.sln` in its solution folder: `dotnet sln src/PowerPlatform/PowerPlatform.sln add <csproj> --solution-folder Plugins`.
 
 ## Structure
 - All plugins MUST inherit `PluginBase` from `{{project_name}}.Common`; never resolve services directly from `IServiceProvider`.
@@ -71,4 +71,4 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Plugin tests MUST execute the production `Execute` path using FakeXrmEasy; never test against a live Dataverse environment.
 - Cover recursion and pipeline-depth behavior wherever the plugin can retrigger itself.
 - After changes, build affected projects and run all affected tests.
-- Build and test one project per command: `dotnet test <Project>.Tests.csproj` builds the plugin and `{{project_name}}.Common` it references. `dotnet build` accepts a single project or solution; to build everything, `dotnet build src/Dataverse/Dataverse.sln`.
+- Build and test one project per command: `dotnet test <Project>.Tests.csproj` builds the plugin and `{{project_name}}.Common` it references. `dotnet build` accepts a single project or solution; to build everything, `dotnet build src/PowerPlatform/PowerPlatform.sln`.
