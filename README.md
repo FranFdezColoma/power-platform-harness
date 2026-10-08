@@ -95,7 +95,9 @@ agent itself, since a script cannot see what is registered with the agent runnin
 
 Discovery reads the publisher unique name, the customization prefix and the core solution straight
 out of a committed `Other/Solution.xml`, and the root namespace out of the `.csproj` files — so the
-usual number of questions is small.
+usual number of questions is small. Without a committed solution, it asks the connected environment
+instead: the publisher of the core solution, or the only custom publisher there is. Given just the
+prefix, it looks up the publisher that owns it.
 
 Then it compares the project against `scripts/standards-baseline.json`, which records every
 version, framework and layout decision the shipped standards assert, and reports the differences:
@@ -146,6 +148,9 @@ pwsh -NoProfile -File ./scripts/discover.ps1 -Path C:\repos\acme
 
 # Repository and toolchain only: no pac calls, no network.
 pwsh -NoProfile -File ./scripts/discover.ps1 -SkipEnvironment
+
+# Only the prefix is known: look up the publisher unique name that owns it in the environment.
+pwsh -NoProfile -File ./scripts/discover.ps1 -PublisherPrefix acme
 
 # Read the real publisher and prefix out of a solution that exists in the environment but has
 # never been unpacked into the repository.

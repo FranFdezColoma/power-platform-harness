@@ -23,7 +23,7 @@ Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not instal
 `AskUserQuestion` takes at most 4 questions, and each needs 2 to 4 concrete predefined options. A free value (a name, a prefix, a url) has no options to offer, so it is asked for in a plain message, never through the tool. Calling the tool without real options fails with `Invalid tool parameters`.
 
 - **Free-text values** (project name, publisher, prefix, core solution, namespace, description, environment url): ask in a plain assistant message as a numbered list, then stop and wait.
-- **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, the single go-ahead in step 6, and committing in step 8.
+- **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, picking one of the publishers discovery found in step 4, the single go-ahead in step 6, and committing in step 8.
 
 Never invent a value. Never derive one silently from the folder name. A wrong publisher prefix cannot be undone once components exist.
 
@@ -43,6 +43,8 @@ One command, before any question:
 ```bash
 pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ps1" -Path .
 ```
+
+If the user already gave a publisher prefix (as an argument to this skill or earlier in the session), add `-PublisherPrefix <prefix>`: discovery then looks up the publisher that owns it, so the unique name is not asked for.
 
 Add `-SkipEnvironment` only when the user says the environment is irrelevant or unreachable. It reads the repository, the tools on this machine and, through `pac`, the connected environment; it writes nothing, in the repo or in Dataverse. Everything downstream comes from its JSON.
 
@@ -100,7 +102,12 @@ Show all six as a table with value, source and confidence, then ask in one plain
 | `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `CLAUDE.md` | Free text |
 
 - **Core solution.** Most projects have one, but it is not mandatory. Check the proposed name against `environment.solutions`; a name flagged `possiblyTruncated` was cut by `pac solution list`, so confirm it. When `environment.solutionsTruncated` is true, that list holds only the first 100 unmanaged solutions: a core solution missing from it may still exist, so ask rather than conclude it does not. The proposal itself was computed over the full list. `featureSolutionsInEnvironment` lists the per-branch solutions already there: none of them is the core solution.
-- **Publisher.** When `PublisherUniqueName` or `PublisherPrefix` is `none` but the core solution exists in the connected environment, re-run Discover with `-ResolvePublisherFromSolution <CoreSolution>` instead of asking. It exports that solution to a temp folder to read its publisher, which takes a while on a large solution: say so first. Without a core solution, ask; the maker portal shows both under Solutions > Publishers.
+- **Publisher.** When connected, discovery reads `environment.publishers` (every publisher a project can own; `isDefault` marks the environment's default ones) and the publisher of each unmanaged solution, and proposes both values from them, in this order: the prefix given with `-PublisherPrefix`, the core solution's publisher, then the only custom publisher in the environment. Act on what is still missing:
+  - **Only the prefix is known** — when the user gives a prefix in their answer and the unique name is still `none`, re-run Discover with `-PublisherPrefix <prefix>` instead of asking for the unique name.
+  - **Several candidates** — the proposal's `alternatives` hold the publishers to choose from. That is a closed choice: ask with `AskUserQuestion`, one option per publisher showing unique name and prefix, up to 4. With more than 4, ask in plain text with the list.
+  - **The prefix matches no publisher** — `recommendation.warnings` says so. Either the prefix is mistyped or the publisher does not exist yet: show the existing custom publishers and ask the user to confirm the prefix before accepting it, and ask for the unique name it will be created with.
+  - **The prefix belongs to a default publisher** — warn: projects should own their publisher.
+  - **Nothing found** — if the core solution exists in the environment but its publisher was not read, re-run Discover with `-ResolvePublisherFromSolution <CoreSolution>`. It exports that solution to a temp folder, which takes a while on a large solution: say so first. Otherwise, ask; the maker portal shows both under Solutions > Publishers.
 
 ## 5. Existing project: adapt the standards to it
 
