@@ -12,7 +12,7 @@
     resulting tree without writing anything.
 
     Also creates the code projects under src/Dataverse/: Dataverse.sln, the shared
-    <RootNamespace>.Common plugin library (PluginBase.cs) and the WebResources build project (an
+    <ProjectName>.Common plugin library (PluginBase.cs) and the WebResources build project (an
     SDK-style .esproj with Vitest + ESLint tooling), unless -SkipLayout or -SkipCodeProjects is
     supplied.
 
@@ -24,23 +24,23 @@
       - -Force:        overwrite. Only after the caller has looked at what is being replaced.
 
     Run scripts/discover.ps1 first to find out which of the three applies, and to read the
-    publisher, prefix, core solution and namespace a project already uses.
+    publisher, prefix, core solution and project name a project already uses.
 
 .EXAMPLE
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
-        -PublisherPrefix nwc -CoreSolution NorthwindCore -RootNamespace Northwind
+        -PublisherPrefix nwc -CoreSolution NorthwindCore
         -ProjectDescription 'Customer Service implementation for Northwind.' -DryRun
 
 .EXAMPLE
     # No core solution: every component lives in the feature solution of its branch.
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
-        -PublisherPrefix nwc -RootNamespace Northwind
+        -PublisherPrefix nwc
         -ProjectDescription 'Customer Service implementation for Northwind.' -TargetPath C:\repos\northwind
 
 .EXAMPLE
     # Adopt the harness into an existing repository: add the missing docs, touch nothing else.
     ./scripts/scaffold.ps1 -ProjectName Acme -PublisherUniqueName AcmeConsulting -PublisherPrefix acme
-        -CoreSolution AcmeCore -RootNamespace Acme.Crm -ProjectDescription 'Customer Service for Acme.'
+        -CoreSolution AcmeCore -ProjectDescription 'Customer Service for Acme.'
         -TargetPath C:\repos\acme -SkipExisting -SkipLayout -Json
 #>
 [CmdletBinding()]
@@ -53,9 +53,6 @@ param(
 
     [Parameter(Mandatory = $true)]
     [string]$PublisherPrefix,
-
-    [Parameter(Mandatory = $true)]
-    [string]$RootNamespace,
 
     [Parameter(Mandatory = $true)]
     [string]$ProjectDescription,
@@ -145,7 +142,7 @@ function Assert-Value {
 # Validate every value before touching the working tree: a rejected prefix after a partial copy
 # would leave a half-scaffolded repository behind.
 Assert-Value -Name 'ProjectName' -Value $ProjectName -Pattern '^[A-Za-z][A-Za-z0-9]*$' `
-    -Requirement 'It names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
+    -Requirement 'It is the root .NET namespace and names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
 
 Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
     -Requirement 'Use the publisher unique name, not its display name: pac solution init needs it to create feature solutions. Letters, digits and underscores only.'
@@ -160,9 +157,6 @@ if ($PublisherPrefix.StartsWith('mscrm')) {
 
 Assert-Value -Name 'CoreSolution' -Value $CoreSolution -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
     -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution."
-
-Assert-Value -Name 'RootNamespace' -Value $RootNamespace -Pattern '^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$' `
-    -Requirement 'It must be a valid .NET namespace, optionally dotted.'
 
 Assert-Value -Name 'ProjectDescription' -Value $ProjectDescription `
     -Requirement 'One or two sentences describing what the project delivers. It becomes the Description section of CLAUDE.md.'
@@ -186,7 +180,6 @@ $tokens = [ordered]@{
     '{{publisher_unique_name}}' = $PublisherUniqueName
     '{{publisher_prefix}}'      = $PublisherPrefix
     '{{core_solution}}'         = $CoreSolution
-    '{{root_namespace}}'        = $RootNamespace
     '{{project_description}}'   = $ProjectDescription
 }
 
@@ -297,7 +290,6 @@ function Write-Report {
                 publisherUniqueName = $PublisherUniqueName
                 publisherPrefix     = $PublisherPrefix
                 coreSolution        = $CoreSolution
-                rootNamespace       = $RootNamespace
                 projectDescription  = $ProjectDescription
             }
             mode        = [ordered]@{
@@ -438,5 +430,4 @@ if (-not $Json) {
     Write-Host "Project:   $ProjectName" -ForegroundColor Cyan
     Write-Host "Publisher: $PublisherUniqueName ($PublisherPrefix)" -ForegroundColor Cyan
     Write-Host "Core:      $CoreSolution" -ForegroundColor Cyan
-    Write-Host "Namespace: $RootNamespace" -ForegroundColor Cyan
 }

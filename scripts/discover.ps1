@@ -1793,7 +1793,8 @@ if (-not $publisherPrefixProposal['value'] -and $prefixCandidates.Count -gt 0) {
     $publisherPrefixProposal = New-Proposal -Value $best -Source "Inferred from component file names ($($prefixCandidates[$best]) match(es)). Confirm against the environment: a wrong prefix cannot be undone." -Confidence 'medium' -Alternatives $prefixEvidence
 }
 
-# RootNamespace
+# The project name is also the root .NET namespace. The namespace the existing C# projects share is
+# the best evidence for it, so it is worked out first and feeds the ProjectName proposal below.
 $namespaceProposal = New-Proposal -Value $null -Source 'No C# project declares a namespace' -Confidence 'none'
 # Plugin code carries the namespace the harness extends. Other C# projects (tools, functions) only
 # speak for it when there is no plugin project at all.
@@ -1844,9 +1845,15 @@ $projectNameProposal = New-Proposal -Value $null -Source 'No evidence in the rep
 )
 $solutionFileName = @($dotnet.solutionFiles | Select-Object -First 1)
 if ($namespaceProposal['value']) {
-    $firstSegment = ($namespaceProposal['value'] -split '\.')[0]
-    if ($firstSegment -match '^[A-Za-z][A-Za-z0-9]*$') {
-        $projectNameProposal = New-Proposal -Value $firstSegment -Source 'First segment of the existing root namespace' -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+    $existingNamespace = $namespaceProposal['value']
+    $firstSegment = ($existingNamespace -split '\.')[0]
+    if ($existingNamespace -match '^[A-Za-z][A-Za-z0-9]*$') {
+        $projectNameProposal = New-Proposal -Value $existingNamespace -Source "$($namespaceProposal['source']). The project name is also the root .NET namespace" -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+    }
+    elseif ($firstSegment -match '^[A-Za-z][A-Za-z0-9]*$') {
+        $projectNameProposal = New-Proposal -Value $firstSegment -Source "First segment of the existing root namespace ($existingNamespace)" -Confidence 'medium' -Alternatives @([System.IO.Path]::GetFileName($Path))
+        # A project name has no dots, so a dotted namespace cannot be carried over as it is.
+        $recommendationWarnings.Add("The existing C# projects use the root namespace $existingNamespace, but the harness uses the project name as the root namespace and a project name cannot contain dots. The generated docs will say $firstSegment.<Entity> and $firstSegment.Common: reconcile them to $existingNamespace after scaffolding.") | Out-Null
     }
 }
 elseif ($solutionFileName) {
@@ -1875,7 +1882,6 @@ $proposedValues = [ordered]@{
     PublisherUniqueName = $publisherUniqueNameProposal
     PublisherPrefix     = $publisherPrefixProposal
     CoreSolution        = $coreProposal
-    RootNamespace       = $namespaceProposal
     ProjectDescription  = $descriptionProposal
 }
 

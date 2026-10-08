@@ -9,7 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CustomAPIs", "CustomAPIs", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WebResources", "WebResources", "{8D3A4E5C-6F7B-4C9D-BEAF-3A4B5C6D7E83}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "{{root_namespace}}.Common", "Plugins\{{root_namespace}}.Common\{{root_namespace}}.Common.csproj", "{9E4B5F6D-7A8C-4DAE-8FB1-4B5C6D7E8F94}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "{{project_name}}.Common", "Plugins\{{project_name}}.Common\{{project_name}}.Common.csproj", "{9E4B5F6D-7A8C-4DAE-8FB1-4B5C6D7E8F94}"
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "{{project_name}}.WebResources", "WebResources\{{project_name}}.WebResources\{{project_name}}.WebResources.esproj", "{E1B4A46E-9D1F-4B7D-9E6D-2C6C8E9E9C11}"
 EndProject

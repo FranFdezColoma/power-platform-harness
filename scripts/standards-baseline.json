@@ -241,7 +241,7 @@
       "kind": "layout",
       "topic": "Repository layout",
       "standard": "src/Dataverse/{Plugins,CustomAPIs,WebResources} in src/Dataverse/Dataverse.sln, one project per table or Custom API with its .Tests project beside it, docs/adr",
-      "standardLabel": "The folder layout the standards reference by path: src/Dataverse/ with Dataverse.sln, a shared <RootNamespace>.Common project, and each plugin or Custom API project next to its test project",
+      "standardLabel": "The folder layout the standards reference by path: src/Dataverse/ with Dataverse.sln, a shared <ProjectName>.Common project, and each plugin or Custom API project next to its test project",
       "assertedIn": "scripts/scaffold.ps1",
       "assertedText": "$keepDirectories",
       "guidance": "Creating this layout next to a different existing one leaves two conventions in one repository. In an existing project, create only what is missing and only where it matches what is already there."

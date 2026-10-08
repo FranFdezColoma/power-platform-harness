@@ -5,7 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.ServiceModel;
 
-namespace {{root_namespace}}.Common
+namespace {{project_name}}.Common
 {
     /// <summary>
     /// Base class for all plug-in classes.

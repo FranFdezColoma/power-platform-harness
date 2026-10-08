@@ -57,11 +57,10 @@ the `$tokens` hashtable in `scripts/scaffold.ps1`, and the value table in
 
 | Token | Resolved from |
 | --- | --- |
-| `{{project_name}}` | `-ProjectName` |
+| `{{project_name}}` | `-ProjectName`. Also the root .NET namespace: there is no separate namespace token |
 | `{{publisher_unique_name}}` | `-PublisherUniqueName` |
 | `{{publisher_prefix}}` | `-PublisherPrefix` |
 | `{{core_solution}}` | `-CoreSolution` (optional, defaults to `none`) |
-| `{{root_namespace}}` | `-RootNamespace` |
 | `{{project_description}}` | `-ProjectDescription` |
 
 Adding a token means touching all three: the template, the script parameter and hashtable, and
@@ -85,17 +84,17 @@ pwsh -NoProfile -File ./scripts/discover.ps1 -SkipEnvironment |
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "pph-$([guid]::NewGuid())"
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
     -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
-    -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp
+    -ProjectDescription 'Test scaffold.' -TargetPath $tmp
 
 # A second run over the same folder must abort without writing
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
     -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
-    -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp
+    -ProjectDescription 'Test scaffold.' -TargetPath $tmp
 
 # The same run with -SkipExisting must add nothing and abort nothing
 pwsh -NoProfile -File ./scripts/scaffold.ps1 -ProjectName Northwind `
     -PublisherUniqueName NorthwindConsulting -PublisherPrefix nwc -CoreSolution NorthwindCore `
-    -RootNamespace Northwind -ProjectDescription 'Test scaffold.' -TargetPath $tmp -SkipExisting
+    -ProjectDescription 'Test scaffold.' -TargetPath $tmp -SkipExisting
 ```
 
 Both scripts must also run under Windows PowerShell 5.1, which the generated projects may be

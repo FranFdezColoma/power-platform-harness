@@ -55,7 +55,7 @@ docs/
 src/Dataverse/
 ├── Dataverse.sln                        # Plugins, CustomAPIs and WebResources solution folders
 ├── Plugins/
-│   └── <Namespace>.Common/              # PluginBase.cs, early-bound classes, shared helpers
+│   └── <Project>.Common/                # PluginBase.cs, early-bound classes, shared helpers
 ├── CustomAPIs/
 └── WebResources/
     └── <Project>.WebResources/          # the .esproj + Vitest/ESLint project
@@ -68,7 +68,7 @@ and answers:
 
 - whether the required tools are installed and recent enough, and which recommended ones are there;
 - whether the folder is empty or an existing project, and whether the harness is already there;
-- which publisher, prefix, core solution and root namespace the project already uses, taken from a
+- which publisher, prefix, core solution and project name the project already uses, taken from a
   committed `Solution.xml`, from the C# projects, or from a solution exported on request;
 - whether `pac` has an authentication profile, which environment it points at, whether its name
   looks like DEV, and which unmanaged solutions already exist in it;
@@ -94,7 +94,7 @@ agent itself, since a script cannot see what is registered with the agent runnin
 ### Existing projects
 
 Discovery reads the publisher unique name, the customization prefix and the core solution straight
-out of a committed `Other/Solution.xml`, and the root namespace out of the `.csproj` files — so the
+out of a committed `Other/Solution.xml`, and the project name out of the `.csproj` files' root namespace — so the
 usual number of questions is small. Without a committed solution, it asks the connected environment
 instead: the publisher of the core solution, or the only custom publisher there is. Given just the
 prefix, it looks up the publisher that owns it.
@@ -120,11 +120,10 @@ The skill resolves these across every generated file, so the result carries no p
 
 | Value | What it is | Example |
 | --- | --- | --- |
-| `ProjectName` | Short project name, used for the JavaScript form API namespace and the WebResources project | `Northwind` |
+| `ProjectName` | Short project name. It is also the root .NET namespace, and names the JavaScript form API namespace and the WebResources project | `Northwind` |
 | `PublisherUniqueName` | Dataverse publisher unique name, used to create feature solutions | `NorthwindConsulting` |
 | `PublisherPrefix` | Dataverse customization prefix, carried by every component | `nwc` |
 | `CoreSolution` | Unique name of the core unmanaged solution in DEV, or `none` (optional) | `NorthwindCore` |
-| `RootNamespace` | Root .NET namespace | `Northwind` |
 | `ProjectDescription` | What the project delivers; becomes the Description section of `CLAUDE.md` | `Customer Service implementation for Northwind.` |
 
 ## How work starts afterwards
@@ -165,7 +164,6 @@ pwsh -NoProfile -File ./scripts/scaffold.ps1 `
     -PublisherUniqueName NorthwindConsulting `
     -PublisherPrefix nwc `
     -CoreSolution NorthwindCore `
-    -RootNamespace Northwind `
     -ProjectDescription 'Customer Service implementation for Northwind.' `
     -TargetPath C:\repos\northwind `
     -DryRun
