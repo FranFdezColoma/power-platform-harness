@@ -112,6 +112,13 @@ function Resolve-Tool {
                 $info.Executable = $command.Source
             }
         }
+        elseif ($command.CommandType -eq 'ExternalScript' -and [System.IO.Path]::GetExtension($command.Source) -eq '.ps1' -and
+            (Test-Path -LiteralPath ([System.IO.Path]::ChangeExtension($command.Source, '.cmd')))) {
+            # npm installs a .cmd shim next to every .ps1 one. Running the .cmd saves starting a
+            # second PowerShell host per probe, which costs more than the probe itself.
+            $info.Executable = "$env:SystemRoot\System32\cmd.exe"
+            $info.Prefix = @('/c', [System.IO.Path]::ChangeExtension($command.Source, '.cmd'))
+        }
         elseif ($command.CommandType -eq 'ExternalScript' -and [System.IO.Path]::GetExtension($command.Source) -eq '.ps1') {
             # npm installs a .ps1 shim alongside the .cmd/extension-less ones on Windows, and
             # Get-Command resolves the .ps1 first. Without this, every npm-installed CLI whose
@@ -154,7 +161,10 @@ function ConvertTo-ArgumentString {
     return ($quoted -join ' ')
 }
 
-function Invoke-Tool {
+# Starts a command and returns at once, so independent probes can run side by side: launched one
+# after another, a dozen cold process starts (pac, dotnet, two PowerShell hosts) add up to seconds.
+# Wait-Tool collects the result. Invoke-Tool does both, for calls that need the answer right away.
+function Start-Tool {
     param(
         [string]$Name,
         [string[]]$Arguments = @(),
@@ -172,24 +182,38 @@ function Invoke-Tool {
         TimedOut = $false
         Error    = $null
     }
+    $job = [pscustomobject]@{
+        Result  = $result
+        Process = $null
+        OutFile = $null
+        ErrFile = $null
+        Timeout = $Timeout
+        Clock   = $null
+    }
 
     $tool = Resolve-Tool -Name $Name
     if (-not $tool.Present) {
         $result.Error = "'$Name' was not found on PATH."
-        return $result
+        return $job
     }
     if (-not $tool.Executable) {
         $result.Error = "'$Name' resolves to $($tool.Kind) at $($tool.Source), which this script does not execute."
-        return $result
+        return $job
     }
 
     if (-not (Test-Path -LiteralPath $script:scratchRoot)) {
         New-Item -ItemType Directory -Path $script:scratchRoot -Force | Out-Null
     }
 
+    # Every child gets an empty stdin instead of inheriting this script's. When an agent runs
+    # discovery, stdin is a pipe that never closes, and npm's PowerShell shims (npm.ps1,
+    # playwright-cli.ps1) treat an open stdin as pipeline input and wait for it until the timeout.
+    $emptyInput = Join-Path $script:scratchRoot 'empty.in'
+    if (-not (Test-Path -LiteralPath $emptyInput)) { [System.IO.File]::WriteAllText($emptyInput, '') }
+
     $stamp = [guid]::NewGuid().ToString('n')
-    $outFile = Join-Path $script:scratchRoot "$stamp.out"
-    $errFile = Join-Path $script:scratchRoot "$stamp.err"
+    $job.OutFile = Join-Path $script:scratchRoot "$stamp.out"
+    $job.ErrFile = Join-Path $script:scratchRoot "$stamp.err"
 
     # Output goes to files rather than pipes: a pipe that fills while nobody reads it deadlocks,
     # and pac is chatty. WaitForExit with a timeout then bounds the whole call.
@@ -199,20 +223,40 @@ function Invoke-Tool {
             FilePath               = $tool.Executable
             NoNewWindow            = $true
             PassThru               = $true
-            RedirectStandardOutput = $outFile
-            RedirectStandardError  = $errFile
+            RedirectStandardInput  = $emptyInput
+            RedirectStandardOutput = $job.OutFile
+            RedirectStandardError  = $job.ErrFile
         }
         if ($argumentString) { $startArguments['ArgumentList'] = $argumentString }
 
+        $job.Clock = [System.Diagnostics.Stopwatch]::StartNew()
         $process = Start-Process @startArguments
 
         # Reading .Handle caches it, which is what makes .ExitCode readable afterwards. Without
         # this, Start-Process -PassThru leaves ExitCode empty and every call looks like a failure.
         $null = $process.Handle
+        $job.Process = $process
+    }
+    catch {
+        $result.Error = "'$($result.Command)' could not be started: $($_.Exception.Message)"
+    }
 
-        if (-not $process.WaitForExit($Timeout * 1000)) {
+    return $job
+}
+
+function Wait-Tool {
+    param($Job)
+
+    $result = $Job.Result
+    $process = $Job.Process
+
+    if ($process) {
+        # The timeout counts from the start, not from this call: a probe that ran while others
+        # were being collected has already used part of it.
+        $remaining = [int][Math]::Max(0, ($Job.Timeout * 1000) - $Job.Clock.ElapsedMilliseconds)
+        if (-not $process.WaitForExit($remaining)) {
             $result.TimedOut = $true
-            $result.Error = "'$($result.Command)' did not finish within $Timeout seconds and was stopped."
+            $result.Error = "'$($result.Command)' did not finish within $($Job.Timeout) seconds and was stopped."
             try { $process.Kill() } catch { }
             $process.WaitForExit(5000) | Out-Null
         }
@@ -224,12 +268,9 @@ function Invoke-Tool {
             $result.ExitCode = $process.ExitCode
         }
     }
-    catch {
-        $result.Error = "'$($result.Command)' could not be started: $($_.Exception.Message)"
-    }
 
-    foreach ($pair in @(@{ File = $outFile; Property = 'Stdout' }, @{ File = $errFile; Property = 'Stderr' })) {
-        if (Test-Path -LiteralPath $pair.File) {
+    foreach ($pair in @(@{ File = $Job.OutFile; Property = 'Stdout' }, @{ File = $Job.ErrFile; Property = 'Stderr' })) {
+        if ($pair.File -and (Test-Path -LiteralPath $pair.File)) {
             $text = [System.IO.File]::ReadAllText($pair.File)
             $result.($pair.Property) = $text.TrimEnd("`r", "`n")
             Remove-Item -LiteralPath $pair.File -Force -ErrorAction SilentlyContinue
@@ -239,11 +280,23 @@ function Invoke-Tool {
     return $result
 }
 
+function Invoke-Tool {
+    param(
+        [string]$Name,
+        [string[]]$Arguments = @(),
+        [int]$Timeout = 0
+    )
+
+    return Wait-Tool -Job (Start-Tool -Name $Name -Arguments $Arguments -Timeout $Timeout)
+}
+
 function Get-ToolReport {
     param(
         [string]$Name,
         [string[]]$VersionArguments = @('--version'),
-        [int]$Timeout = 30
+        [int]$Timeout = 30,
+        # The result of a probe already started with Start-Tool; without it, the probe runs here.
+        $Run = $null
     )
 
     $tool = Resolve-Tool -Name $Name
@@ -261,7 +314,8 @@ function Get-ToolReport {
         return $report
     }
 
-    $run = Invoke-Tool -Name $Name -Arguments $VersionArguments -Timeout $Timeout
+    $run = $Run
+    if (-not $run) { $run = Invoke-Tool -Name $Name -Arguments $VersionArguments -Timeout $Timeout }
     $output = "$($run.Stdout)`n$($run.Stderr)".Trim()
 
     # pac prints a banner and then exits 1 on --version, so a version that was printed is worth
@@ -828,7 +882,7 @@ function Invoke-FetchXml {
 }
 
 function Get-DotnetGlobalToolIds {
-    param([bool]$DotnetPresent, [int]$Timeout = 30)
+    param([bool]$DotnetPresent, [int]$Timeout = 30, $Run = $null)
 
     $result = [ordered]@{ packageIds = @(); error = $null }
     if (-not $DotnetPresent) {
@@ -836,7 +890,8 @@ function Get-DotnetGlobalToolIds {
         return $result
     }
 
-    $run = Invoke-Tool -Name 'dotnet' -Arguments @('tool', 'list', '--global') -Timeout $Timeout
+    $run = $Run
+    if (-not $run) { $run = Invoke-Tool -Name 'dotnet' -Arguments @('tool', 'list', '--global') -Timeout $Timeout }
     if (-not $run.Ran -or $run.ExitCode -ne 0) {
         $result.error = if ($run.Error) { $run.Error } elseif ($run.Stderr) { $run.Stderr } else { $run.Stdout }
         return $result
@@ -855,13 +910,14 @@ function Get-DotnetGlobalToolIds {
 }
 
 function Get-DotnetSdkReport {
-    param($Report)
+    param($Report, $Run = $null)
 
     # `dotnet --version` reports the SDK a global.json pins, not the newest one installed, so a
     # repository pinned to 6 would hide an installed 10. List the SDKs and take the highest.
     if (-not $Report['present']) { return $Report }
 
-    $run = Invoke-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30
+    $run = $Run
+    if (-not $run) { $run = Invoke-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30 }
     if ($run.Ran -and $run.ExitCode -eq 0) {
         $versions = @(foreach ($line in ($run.Stdout -split "`r?`n")) {
             $match = [regex]::Match($line, '^\s*(\d+\.\d+\.\d+)')
@@ -928,18 +984,32 @@ try {
 
 # ---- tooling ------------------------------------------------------------------------------
 
-$tooling = [ordered]@{
-    pwsh          = Get-ToolReport -Name 'pwsh' -VersionArguments @('--version')
-    powershell    = Get-ToolReport -Name 'powershell' -VersionArguments @('-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()')
-    git           = Get-ToolReport -Name 'git' -VersionArguments @('--version')
-    pac           = Get-ToolReport -Name 'pac' -VersionArguments @('--version')
-    dotnet        = Get-ToolReport -Name 'dotnet' -VersionArguments @('--version')
-    node          = Get-ToolReport -Name 'node' -VersionArguments @('--version')
-    npm           = Get-ToolReport -Name 'npm' -VersionArguments @('--version')
-    gh            = Get-ToolReport -Name 'gh' -VersionArguments @('--version')
-    playwrightCli = Get-ToolReport -Name 'playwright-cli' -VersionArguments @('--version')
+$versionProbes = @(
+    @{ Key = 'pwsh'; Name = 'pwsh'; Arguments = @('--version') }
+    @{ Key = 'powershell'; Name = 'powershell'; Arguments = @('-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()') }
+    @{ Key = 'git'; Name = 'git'; Arguments = @('--version') }
+    @{ Key = 'pac'; Name = 'pac'; Arguments = @('--version') }
+    @{ Key = 'dotnet'; Name = 'dotnet'; Arguments = @('--version') }
+    @{ Key = 'node'; Name = 'node'; Arguments = @('--version') }
+    @{ Key = 'npm'; Name = 'npm'; Arguments = @('--version') }
+    @{ Key = 'gh'; Name = 'gh'; Arguments = @('--version') }
+    @{ Key = 'playwrightCli'; Name = 'playwright-cli'; Arguments = @('--version') }
+)
+
+# Every probe is independent, so all of them start before any is waited for: the toolchain check
+# takes as long as the slowest one (usually pac) instead of the sum of all of them.
+$probeJobs = @{}
+foreach ($probe in $versionProbes) {
+    $probeJobs[$probe.Key] = Start-Tool -Name $probe.Name -Arguments $probe.Arguments -Timeout 30
 }
-$tooling['dotnet'] = Get-DotnetSdkReport -Report $tooling['dotnet']
+$dotnetSdksJob = Start-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30
+$dotnetToolsJob = Start-Tool -Name 'dotnet' -Arguments @('tool', 'list', '--global') -Timeout 30
+
+$tooling = [ordered]@{}
+foreach ($probe in $versionProbes) {
+    $tooling[$probe.Key] = Get-ToolReport -Name $probe.Name -Run (Wait-Tool -Job $probeJobs[$probe.Key])
+}
+$tooling['dotnet'] = Get-DotnetSdkReport -Report $tooling['dotnet'] -Run (Wait-Tool -Job $dotnetSdksJob)
 $tooling['currentPowerShell'] = [ordered]@{
     present = $true
     version = $PSVersionTable.PSVersion.ToString()
@@ -947,7 +1017,7 @@ $tooling['currentPowerShell'] = [ordered]@{
 }
 
 $dataverseMcpProxyPackageId = 'microsoft.powerplatform.dataverse.mcp'
-$dotnetGlobalTools = Get-DotnetGlobalToolIds -DotnetPresent $tooling.dotnet.present
+$dotnetGlobalTools = Get-DotnetGlobalToolIds -DotnetPresent $tooling.dotnet.present -Run (Wait-Tool -Job $dotnetToolsJob)
 $dataverseMcpProxyInstalled = @($dotnetGlobalTools.packageIds) -contains $dataverseMcpProxyPackageId
 
 # ---- repository ---------------------------------------------------------------------------
