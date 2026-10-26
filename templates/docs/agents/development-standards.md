@@ -8,15 +8,13 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 ## How to use this file
 
-- Read this file before any change. Then read the standards file for each technology the change touches — only those, not all of them.
-- A technology file may make a rule here more specific. It MUST NOT contradict it. On a genuine conflict, this file wins and the conflict is reported.
+- A technology file may make a rule here more specific. If it contradicts one, this file wins and you report the contradiction.
 - If the change touches a technology with no standards file, apply this file alone and state that gap explicitly in the final report.
 - Project identity: project `{{project_name}}`, publisher `{{publisher_unique_name}}` with customization prefix `{{publisher_prefix}}`, core solution `{{core_solution}}` in DEV (`none` when the project has none). The project name is also the root .NET namespace.
 - Only when a tool a task needs is missing or fails, read `docs/agents/toolchain.md` for what to install. Never assume a tool is present or absent: check when the task needs it.
 
 ## Design principles
 
-- Prefer the simplest solution that satisfies the requirement. Avoid over-engineering.
 - Do not introduce abstractions until there is a demonstrated need. Two call sites are not a need; three divergent ones might be.
 - Change only what the task requires. No opportunistic refactors, renames, formatting sweeps or dependency bumps riding along with a functional change: they hide the real diff from the reviewer.
 - Never introduce a new technology, framework, library, architectural pattern, testing framework or project convention when an equivalent project standard already exists.
@@ -33,7 +31,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Express a business rule independently of the platform whenever the rule can be stated without it.
 - Pure business rules take and return plain values, are deterministic and side-effect free. Pass non-deterministic inputs (current time, GUIDs, random values, current user) as parameters.
 - Platform APIs, context objects and I/O belong in the integration layer, never inside the rule.
-- Do not force this separation onto logic that is already simple.
+- Separate a rule when it has branches or needs its own tests. A single check with no branching stays inline.
 
 ## Error handling
 
@@ -45,9 +43,9 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 ## Data, secrets & traceability
 
-- Never hardcode connection strings, API keys, secrets, credentials, URLs, endpoints or environment GUIDs in code, configuration, flows, tests or fixtures. Use environment variables and connection references.
+- Never hardcode connection strings, API keys, secrets, credentials, environment-specific URLs or endpoints, or environment GUIDs in code, configuration, flows, tests or fixtures. Use environment variables and connection references.
 - Never commit or log personally identifiable information or other regulated data (GDPR, HIPAA, PCI-DSS, etc.). Test fixtures use synthetic or anonymised data.
-- If a task appears to require handling a regulated data category, flag it to the developer instead of proceeding silently.
+- Ordinary CRM data (names, emails, phone numbers, addresses of contacts and accounts) is the normal subject of this work and needs no flag. Flag it to the developer instead of proceeding silently when a task requires handling special-category data (health, biometric or genetic data, religious or political beliefs, sexual orientation, criminal records), payment card data, or government identifiers.
 - Emit enough diagnostic detail to reconstruct what happened: the operation, the record identifier, the outcome. Never the contents of sensitive fields.
 - Remove temporary debugging output before the change is done.
 
@@ -57,12 +55,11 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Retrieve only the columns and rows the operation needs. No unbounded queries; page explicitly.
 - Prefer data already available in context (form values, trigger payload, registered images, framework context) over retrieving the same data again.
 - Never query inside a loop when a single filtered query answers the same question.
-- Respect platform limits by design: sandbox timeouts, API request limits, throttling, message size.
+- Design within the platform limits: a sandboxed plugin is killed after 2 minutes, so long-running work goes asynchronous; an `ExecuteMultiple` batch holds at most 1000 requests; the service protection limits throttle a user with HTTP 429, so bulk clients honour `Retry-After` instead of retrying immediately.
 
-## Naming & language
+## Language
 
 - English for all technical work and artifacts.
-- Respond in the user's language unless requested otherwise.
 
 ## Testing
 
@@ -72,7 +69,6 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Cover expected behaviour, the relevant edge cases, and the failure paths.
 - Tests are independent of execution order and of state left behind by another test.
 - A change is incomplete while a required test is missing or failing.
-- Write the test first where you can: it is the recommended practice, not a condition of done.
 - Testing in this repository means unit tests for code: plugins, Custom APIs, web resources and PCF controls. Low-code components — flows, forms, views, schema, security, solution configuration — are outside its scope.
 
 ## Working against Dataverse
@@ -81,15 +77,10 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Name the environment before any operation against it (`pac org who`). Treat any environment you have not verified as production.
 - Write operations are permitted in DEV only, with `pac` or the Dataverse MCP server, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
 
-## Agent permissions
+## Blocked commands
 
-`.claude/settings.json` enforces part of the rules above, so they hold even when an instruction is missed:
-
-- **Denied**: deleting a solution, a connection or an environment, resetting, restoring or copying an environment, applying a solution upgrade, deleting records, tables or skills through the Dataverse MCP server, and rewriting git history (`git push --force`, `git reset --hard`, `git clean`, `git branch -D`). Prepare the command and hand it to the developer.
-- **Asks every time**: `scripts/new-feature.ps1`, `pac solution import` and deployments. They create things in an environment.
-- **Allowed without asking**: reading the environment (`pac org who`, `pac solution list`, `pac env fetch`), and building, testing and linting (`dotnet build`, `dotnet test`, `npm test`, `npm run lint`).
-
-These rules match the commands as the agent writes them. They are a guard against mistakes, not a security boundary: never try to reach a denied operation another way (a different spelling, a script, a subshell). The allowed list applies only after the developer accepts the workspace trust prompt the first time Claude Code opens the repository; the denied list applies from the start. Personal additions go in `.claude/settings.local.json`, which is not committed. Never weaken the shared file to get past a block.
+- When a command is denied, do not reach it another way (a different spelling, a script, a subshell). Prepare the command and hand it to the developer.
+- Never edit `.claude/settings.json` to get past a block.
 
 ## Reporting
 
@@ -101,27 +92,26 @@ Compiling is not done. A task is complete only when all of the following hold:
 
 - The implementation matches the spec and every applicable standards file.
 - The unit tests the change requires exist and pass; affected projects build with no errors and no new warnings; linting and static analysis are clean.
-- The diff was reviewed against the spec and the standards.
+- You re-read your own diff against the spec and the standards before reporting the task done.
 - No secrets, credentials or regulated data are hardcoded, logged or committed.
 
 ## Git
 
 - Commit only once the change satisfies the Definition of Done above — never leave a commit as the final state of a task in a broken or partially-implemented condition.
 - Commit messages describe the change and its motivation, not just the action (`fix`, `update` alone are not enough).
-- Prefer `gh` for PR creation, review and inspection over the web UI.
 - Branch naming: `<type>/<short-description>` (e.g. `fix/`, `feature/`, `chore/`).
-- One unit of work, one branch, one feature solution, except on the trunk, which has no feature solution: `docs/development/solutions.md` says which solution applies there. Before starting anything, ask whether the work goes on the current branch or a new one, and derive the feature solution name from the branch: `docs/development/solutions.md` owns that flow and its commands.
+- One unit of work, one branch, one feature solution, except on the trunk, which has no feature solution: `docs/development/solutions.md` says which solution applies there.
 
 ## Standards index
 
 Read the file for each technology the change touches, before writing.
 
-| Technology | File | Status |
-| --- | --- | --- |
-| JavaScript web resources | `docs/development/javascript.md` | Ready |
-| WebResources build project | `docs/development/webresources-project.md` | Ready |
-| C# Dataverse plugins | `docs/development/csharp-plugins.md` | Ready |
-| PCF controls | `docs/development/pcf.md` | Ready |
-| Custom APIs | `docs/development/custom-apis.md` | Ready |
-| Dataverse schema | `docs/development/dataverse-schema.md` | Ready |
-| Solutions and DEV environment | `docs/development/solutions.md` | Ready |
+| Technology | File |
+| --- | --- |
+| JavaScript web resources | `docs/development/javascript.md` |
+| WebResources build project | `docs/development/webresources-project.md` |
+| C# Dataverse plugins | `docs/development/csharp-plugins.md` |
+| PCF controls | `docs/development/pcf.md` |
+| Custom APIs | `docs/development/custom-apis.md` |
+| Dataverse schema | `docs/development/dataverse-schema.md` |
+| Solutions and DEV environment | `docs/development/solutions.md` |
