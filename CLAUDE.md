@@ -6,6 +6,11 @@ repositories. It ships one skill, `set-power-platform`, and the templates it wri
 It is not a Power Platform project: nothing here is deployed to Dataverse. The standards in
 `templates/docs/` govern the projects this plugin creates, not this repository.
 
+**2.0 is in progress** on `feature/v2-official-skills`. Before changing anything, read
+`docs/design/2.0-architecture.md`: it holds the agreed design and the phase you are in. Where it
+and the sections below disagree, the design document describes the target and the sections below
+describe 1.x as it still stands.
+
 ## Layout
 
 | Path | What it is |
