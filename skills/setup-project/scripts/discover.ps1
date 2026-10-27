@@ -3,18 +3,17 @@
     Read-only discovery of a repository and, optionally, the connected Dataverse environment.
 
 .DESCRIPTION
-    Answers the questions the set-power-platform skill needs before it writes anything:
+    Answers the questions the setup-project skill needs before it writes anything:
 
-      - Are the required tools installed (PowerShell, git, .NET SDK, Node.js, pac), and does each
-        meet the minimum and preferred version in scripts/standards-baseline.json?
-      - Are the recommended CLIs installed (playwright-cli, the Dataverse MCP local proxy)? MCP
-        servers registered with the agent are not visible from here: the agent checks its own.
       - Is this folder empty, or an existing project the harness has to adapt to?
       - Which publisher, prefix, core solution and namespace does the project already use?
       - Which versions and frameworks does it actually use, and where do those differ from the
-        versions the shipped standards assert (scripts/standards-baseline.json)?
-      - Does pac have an authentication profile, which environment does it point at, and which
-        unmanaged solutions exist there?
+        versions the shipped standards assert (standards-baseline.json)?
+      - Through pac, which publishers and unmanaged solutions exist in the connected environment,
+        so the project's identity can be read rather than asked for?
+
+    The machine's tools are the setup-tools skill's question, and whether the connection points
+    at the right environment is the connect skill's: this script answers neither.
 
     Everything here reads. Nothing is created, modified or deleted, in the repository or in the
     environment. Output is a single JSON document on stdout so the caller does not have to parse
@@ -66,276 +65,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Off
 
-function Stop-WithError {
-    param([string]$Message)
-
-    [Console]::Error.WriteLine("ERROR: $Message")
-    exit 1
-}
-
-# --------------------------------------------------------------------------------------------
-# External commands
-# --------------------------------------------------------------------------------------------
-
-$script:resolvedTools = @{}
-$script:scratchRoot = Join-Path ([System.IO.Path]::GetTempPath()) "pph-discover-$([guid]::NewGuid())"
-
-function Resolve-Tool {
-    param([string]$Name)
-
-    if ($script:resolvedTools.ContainsKey($Name)) { return $script:resolvedTools[$Name] }
-
-    $command = Get-Command -Name $Name -ErrorAction SilentlyContinue | Select-Object -First 1
-    $info = [pscustomobject]@{
-        Name       = $Name
-        Present    = $false
-        Source     = $null
-        Kind       = $null
-        Executable = $null
-        Prefix     = @()
-    }
-
-    if ($command) {
-        $info.Present = $true
-        $info.Source = $command.Source
-        $info.Kind = [string]$command.CommandType
-
-        if ($command.CommandType -eq 'Application') {
-            $extension = [System.IO.Path]::GetExtension($command.Source)
-            if ($extension -in @('.cmd', '.bat')) {
-                # CreateProcess cannot launch a batch file directly, and redirecting output forces
-                # UseShellExecute = false. npm-installed pac lands here.
-                $info.Executable = "$env:SystemRoot\System32\cmd.exe"
-                $info.Prefix = @('/c', $command.Source)
-            }
-            else {
-                $info.Executable = $command.Source
-            }
-        }
-        elseif ($command.CommandType -eq 'ExternalScript' -and [System.IO.Path]::GetExtension($command.Source) -eq '.ps1' -and
-            (Test-Path -LiteralPath ([System.IO.Path]::ChangeExtension($command.Source, '.cmd')))) {
-            # npm installs a .cmd shim next to every .ps1 one. Running the .cmd saves starting a
-            # second PowerShell host per probe, which costs more than the probe itself.
-            $info.Executable = "$env:SystemRoot\System32\cmd.exe"
-            $info.Prefix = @('/c', [System.IO.Path]::ChangeExtension($command.Source, '.cmd'))
-        }
-        elseif ($command.CommandType -eq 'ExternalScript' -and [System.IO.Path]::GetExtension($command.Source) -eq '.ps1') {
-            # npm installs a .ps1 shim alongside the .cmd/extension-less ones on Windows, and
-            # Get-Command resolves the .ps1 first. Without this, every npm-installed CLI whose
-            # first match is the .ps1 shim (claude, playwright-cli) would be reported as present
-            # but never actually probed.
-            $shellCommand = Get-Command -Name pwsh -ErrorAction SilentlyContinue | Select-Object -First 1
-            if (-not $shellCommand) { $shellCommand = Get-Command -Name powershell -ErrorAction SilentlyContinue | Select-Object -First 1 }
-            if ($shellCommand) {
-                $info.Executable = $shellCommand.Source
-                $info.Prefix = @('-NoProfile', '-NonInteractive', '-File', $command.Source)
-            }
-        }
-        # Anything else (a function, an alias, or a .ps1 shim when no PowerShell host could be
-        # found to run it) is reported as present but is never executed: presence is all this
-        # script needs from those.
-    }
-
-    $script:resolvedTools[$Name] = $info
-    return $info
-}
-
-function ConvertTo-ArgumentString {
-    param([string[]]$Arguments)
-
-    if (-not $Arguments) { return '' }
-
-    # CommandLineToArgvW rules: backslashes are literal unless they precede a quote, so the run of
-    # backslashes before an embedded quote, and before the closing quote, has to be doubled.
-    # Otherwise "C:\My Repo\" ends in \" and the closing quote is read as part of the argument.
-    $quoted = foreach ($argument in $Arguments) {
-        if ($argument -eq '') { '""' }
-        elseif ($argument -match '[\s"]') {
-            $escaped = [regex]::Replace($argument, '(\\*)"', { param($m) ($m.Groups[1].Value * 2) + '\"' })
-            $escaped = [regex]::Replace($escaped, '(\\+)$', { param($m) $m.Groups[1].Value * 2 })
-            '"' + $escaped + '"'
-        }
-        else { $argument }
-    }
-
-    return ($quoted -join ' ')
-}
-
-# Starts a command and returns at once, so independent probes can run side by side: launched one
-# after another, a dozen cold process starts (pac, dotnet, two PowerShell hosts) add up to seconds.
-# Wait-Tool collects the result. Invoke-Tool does both, for calls that need the answer right away.
-function Start-Tool {
-    param(
-        [string]$Name,
-        [string[]]$Arguments = @(),
-        [int]$Timeout = 0
-    )
-
-    if ($Timeout -le 0) { $Timeout = $TimeoutSeconds }
-
-    $result = [pscustomobject]@{
-        Command  = "$Name $($Arguments -join ' ')".Trim()
-        Ran      = $false
-        ExitCode = $null
-        Stdout   = ''
-        Stderr   = ''
-        TimedOut = $false
-        Error    = $null
-    }
-    $job = [pscustomobject]@{
-        Result  = $result
-        Process = $null
-        OutFile = $null
-        ErrFile = $null
-        Timeout = $Timeout
-        Clock   = $null
-    }
-
-    $tool = Resolve-Tool -Name $Name
-    if (-not $tool.Present) {
-        $result.Error = "'$Name' was not found on PATH."
-        return $job
-    }
-    if (-not $tool.Executable) {
-        $result.Error = "'$Name' resolves to $($tool.Kind) at $($tool.Source), which this script does not execute."
-        return $job
-    }
-
-    if (-not (Test-Path -LiteralPath $script:scratchRoot)) {
-        New-Item -ItemType Directory -Path $script:scratchRoot -Force | Out-Null
-    }
-
-    # Every child gets an empty stdin instead of inheriting this script's. When an agent runs
-    # discovery, stdin is a pipe that never closes, and npm's PowerShell shims (npm.ps1,
-    # playwright-cli.ps1) treat an open stdin as pipeline input and wait for it until the timeout.
-    $emptyInput = Join-Path $script:scratchRoot 'empty.in'
-    if (-not (Test-Path -LiteralPath $emptyInput)) { [System.IO.File]::WriteAllText($emptyInput, '') }
-
-    $stamp = [guid]::NewGuid().ToString('n')
-    $job.OutFile = Join-Path $script:scratchRoot "$stamp.out"
-    $job.ErrFile = Join-Path $script:scratchRoot "$stamp.err"
-
-    # Output goes to files rather than pipes: a pipe that fills while nobody reads it deadlocks,
-    # and pac is chatty. WaitForExit with a timeout then bounds the whole call.
-    try {
-        $argumentString = ConvertTo-ArgumentString -Arguments (@($tool.Prefix) + @($Arguments))
-        $startArguments = @{
-            FilePath               = $tool.Executable
-            NoNewWindow            = $true
-            PassThru               = $true
-            RedirectStandardInput  = $emptyInput
-            RedirectStandardOutput = $job.OutFile
-            RedirectStandardError  = $job.ErrFile
-        }
-        if ($argumentString) { $startArguments['ArgumentList'] = $argumentString }
-
-        $job.Clock = [System.Diagnostics.Stopwatch]::StartNew()
-        $process = Start-Process @startArguments
-
-        # Reading .Handle caches it, which is what makes .ExitCode readable afterwards. Without
-        # this, Start-Process -PassThru leaves ExitCode empty and every call looks like a failure.
-        $null = $process.Handle
-        $job.Process = $process
-    }
-    catch {
-        $result.Error = "'$($result.Command)' could not be started: $($_.Exception.Message)"
-    }
-
-    return $job
-}
-
-function Wait-Tool {
-    param($Job)
-
-    $result = $Job.Result
-    $process = $Job.Process
-
-    if ($process) {
-        # The timeout counts from the start, not from this call: a probe that ran while others
-        # were being collected has already used part of it.
-        $remaining = [int][Math]::Max(0, ($Job.Timeout * 1000) - $Job.Clock.ElapsedMilliseconds)
-        if (-not $process.WaitForExit($remaining)) {
-            $result.TimedOut = $true
-            $result.Error = "'$($result.Command)' did not finish within $($Job.Timeout) seconds and was stopped."
-            try { $process.Kill() } catch { }
-            $process.WaitForExit(5000) | Out-Null
-        }
-        else {
-            # The timed overload can return before the exit state is processed; the parameterless
-            # call returns immediately once exited and guarantees ExitCode is populated.
-            $process.WaitForExit()
-            $result.Ran = $true
-            $result.ExitCode = $process.ExitCode
-        }
-    }
-
-    foreach ($pair in @(@{ File = $Job.OutFile; Property = 'Stdout' }, @{ File = $Job.ErrFile; Property = 'Stderr' })) {
-        if ($pair.File -and (Test-Path -LiteralPath $pair.File)) {
-            $text = [System.IO.File]::ReadAllText($pair.File)
-            $result.($pair.Property) = $text.TrimEnd("`r", "`n")
-            Remove-Item -LiteralPath $pair.File -Force -ErrorAction SilentlyContinue
-        }
-    }
-
-    return $result
-}
-
-function Invoke-Tool {
-    param(
-        [string]$Name,
-        [string[]]$Arguments = @(),
-        [int]$Timeout = 0
-    )
-
-    return Wait-Tool -Job (Start-Tool -Name $Name -Arguments $Arguments -Timeout $Timeout)
-}
-
-function Get-ToolReport {
-    param(
-        [string]$Name,
-        [string[]]$VersionArguments = @('--version'),
-        [int]$Timeout = 30,
-        # The result of a probe already started with Start-Tool; without it, the probe runs here.
-        $Run = $null
-    )
-
-    $tool = Resolve-Tool -Name $Name
-    $report = [ordered]@{
-        present = $tool.Present
-        source  = $tool.Source
-        version = $null
-        note    = $null
-    }
-
-    if (-not $tool.Present) { return $report }
-
-    if (-not $tool.Executable) {
-        $report['note'] = "Resolves to $($tool.Kind); version not probed."
-        return $report
-    }
-
-    $run = $Run
-    if (-not $run) { $run = Invoke-Tool -Name $Name -Arguments $VersionArguments -Timeout $Timeout }
-    $output = "$($run.Stdout)`n$($run.Stderr)".Trim()
-
-    # pac prints a banner and then exits 1 on --version, so a version that was printed is worth
-    # more than the exit code. Only report a note when nothing recognisable came back.
-    $match = [regex]::Match($output, '(\d+\.\d+[\w.+-]*)')
-    if ($match.Success) {
-        $report['version'] = $match.Value
-    }
-    elseif ($run.Error) {
-        $report['note'] = $run.Error
-    }
-    elseif ($output) {
-        $report['version'] = ($output -split "`n" | Select-Object -First 1).Trim()
-    }
-    else {
-        $report['note'] = "No version output; exited with code $($run.ExitCode)."
-    }
-
-    return $report
-}
+. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '_dataverse.ps1')
 
 # --------------------------------------------------------------------------------------------
 # Repository walk
@@ -414,77 +145,6 @@ function Select-Files {
     $matched = @($Files | Where-Object { $_ -match $Pattern })
     if ($matched.Count -gt $Limit) { return ,@($matched | Select-Object -First $Limit) }
     return ,$matched
-}
-
-function Read-XmlFile {
-    param([string]$FullPath)
-
-    try {
-        $document = New-Object System.Xml.XmlDocument
-        $document.PreserveWhitespace = $false
-        # Solution.xml and ControlManifest.Input.xml are repository content, but treat them as
-        # untrusted input anyway: no DTD resolution, no external entities.
-        $settings = New-Object System.Xml.XmlReaderSettings
-        $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
-        $settings.XmlResolver = $null
-        $reader = [System.Xml.XmlReader]::Create($FullPath, $settings)
-        try { $document.Load($reader) } finally { $reader.Dispose() }
-        return $document
-    }
-    catch {
-        return $null
-    }
-}
-
-function Get-SolutionFacts {
-    param([string]$Root, [string[]]$SolutionXmlFiles)
-
-    foreach ($relative in $SolutionXmlFiles) {
-        $document = Read-XmlFile -FullPath (Join-Path $Root $relative)
-        # <folder>/Other/Solution.xml -> <folder>
-        $folder = ($relative -replace '/Other/Solution\.xml$', '')
-
-        if (-not $document) {
-            [pscustomobject]@{
-                folder    = $folder
-                manifest  = $relative
-                readError = 'Solution.xml could not be parsed.'
-            }
-            continue
-        }
-
-        $manifest = $document.SelectSingleNode('/ImportExportXml/SolutionManifest')
-        if (-not $manifest) {
-            [pscustomobject]@{ folder = $folder; manifest = $relative; readError = 'No SolutionManifest element.' }
-            continue
-        }
-
-        $publisher = $manifest.SelectSingleNode('Publisher')
-        $publisherDisplay = $null
-        if ($publisher) {
-            $localized = $publisher.SelectSingleNode('LocalizedNames/LocalizedName')
-            if ($localized) { $publisherDisplay = $localized.GetAttribute('description') }
-        }
-
-        $solutionDisplay = $null
-        $solutionLocalized = $manifest.SelectSingleNode('LocalizedNames/LocalizedName')
-        if ($solutionLocalized) { $solutionDisplay = $solutionLocalized.GetAttribute('description') }
-
-        $managedNode = $manifest.SelectSingleNode('Managed')
-
-        [pscustomobject]@{
-            folder              = $folder
-            manifest            = $relative
-            uniqueName          = $(if ($manifest.SelectSingleNode('UniqueName')) { $manifest.SelectSingleNode('UniqueName').InnerText } else { $null })
-            displayName         = $solutionDisplay
-            version             = $(if ($manifest.SelectSingleNode('Version')) { $manifest.SelectSingleNode('Version').InnerText } else { $null })
-            managed             = $(if ($managedNode) { $managedNode.InnerText -eq '1' } else { $null })
-            publisherUniqueName = $(if ($publisher -and $publisher.SelectSingleNode('UniqueName')) { $publisher.SelectSingleNode('UniqueName').InnerText } else { $null })
-            publisherName       = $publisherDisplay
-            publisherPrefix     = $(if ($publisher -and $publisher.SelectSingleNode('CustomizationPrefix')) { $publisher.SelectSingleNode('CustomizationPrefix').InnerText } else { $null })
-            readError           = $null
-        }
-    }
 }
 
 function Get-ItemMetadata {
@@ -724,245 +384,6 @@ function Get-PcfFacts {
 }
 
 # --------------------------------------------------------------------------------------------
-# Environment
-# --------------------------------------------------------------------------------------------
-
-function Get-AuthProfiles {
-    param([string]$Output)
-
-    # pac auth list prints a fixed-width table. Column positions move between versions, so take
-    # the pieces that have an unambiguous shape instead: the active marker, an email, a url.
-    foreach ($line in ($Output -split "`r?`n")) {
-        if ($line -notmatch '^\s*\[\d+\]') { continue }
-
-        $url = [regex]::Match($line, 'https?://[^\s]+')
-        $user = [regex]::Match($line, '[^\s]+@[^\s]+')
-
-        [pscustomobject]@{
-            index       = [regex]::Match($line, '\[(\d+)\]').Groups[1].Value
-            active      = $line -match '^\s*\[\d+\]\s+\*'
-            user        = $(if ($user.Success) { $user.Value } else { $null })
-            url         = $(if ($url.Success) { $url.Value.TrimEnd('/') } else { $null })
-            raw         = $line.Trim()
-        }
-    }
-}
-
-function Get-OrgFacts {
-    param([string]$Output)
-
-    $facts = [ordered]@{
-        connectedAs   = $null
-        friendlyName  = $null
-        uniqueName    = $null
-        url           = $null
-        orgId         = $null
-        environmentId = $null
-        userEmail     = $null
-    }
-
-    $map = @{
-        'Org ID'        = 'orgId'
-        'Unique Name'   = 'uniqueName'
-        'Friendly Name' = 'friendlyName'
-        'Org URL'       = 'url'
-        'User Email'    = 'userEmail'
-        'Environment ID' = 'environmentId'
-    }
-
-    foreach ($line in ($Output -split "`r?`n")) {
-        $match = [regex]::Match($line, '^\s*([A-Za-z ]+?):\s+(.+?)\s*$')
-        if ($match.Success -and $map.ContainsKey($match.Groups[1].Value)) {
-            $facts[$map[$match.Groups[1].Value]] = $match.Groups[2].Value
-        }
-        elseif ($line -match '^\s*Connected as\s+(.+?)\s*$') {
-            $facts['connectedAs'] = $Matches[1]
-        }
-    }
-
-    if ($facts['url']) { $facts['url'] = $facts['url'].TrimEnd('/') }
-    return $facts
-}
-
-function Get-EnvironmentNameSignal {
-    param([string[]]$Values)
-
-    $text = (@($Values) -join ' ')
-    if (-not $text) { return 'unknown' }
-
-    # Production first: a name containing both is more likely to be production than not.
-    if ($text -match '(?i)(^|[^a-z])(prod|prd|production|live)([^a-z]|$)') { return 'production' }
-    if ($text -match '(?i)(^|[^a-z])(test|tst|qa|uat|sit|stag|staging|stage|preprod|pre-prod)([^a-z]|$)') { return 'test' }
-    if ($text -match '(?i)(^|[^a-z])(dev|develop|development|sandbox|sbx)([^a-z]|$)') { return 'dev' }
-    return 'unknown'
-}
-
-function Get-EnvironmentSolutions {
-    param([string]$Output)
-
-    $started = $false
-    foreach ($line in ($Output -split "`r?`n")) {
-        if ($line -match '^\s*Unique Name\s+Friendly Name\s+Version\s+Managed') { $started = $true; continue }
-        if (-not $started) { continue }
-        if (-not $line.Trim()) { continue }
-
-        $match = [regex]::Match($line, '^(?<unique>\S+)\s+(?<rest>.*?)\s+(?<version>\d+(\.\d+){1,3})\s+(?<managed>True|False)\s*$')
-        if (-not $match.Success) { continue }
-
-        $unique = $match.Groups['unique'].Value
-        [pscustomobject]@{
-            uniqueName   = $unique
-            friendlyName = $match.Groups['rest'].Value.Trim()
-            version      = $match.Groups['version'].Value
-            managed      = $match.Groups['managed'].Value -eq 'True'
-            # pac pads the unique name column to a fixed width and cuts anything longer. A name at
-            # exactly the limit may be a truncation, and a truncated unique name passed to
-            # pac solution export fails or, worse, matches the wrong solution.
-            possiblyTruncated = $unique.Length -ge 48
-        }
-    }
-}
-
-function Invoke-FetchXml {
-    param([string]$FetchXml, [string[]]$Columns)
-
-    # Runs a read-only FetchXML query through pac env fetch and parses the fixed-width table it
-    # prints. Returns @{ rows; error }. The query goes through --xmlFile rather than --xml: a
-    # command line full of quotes and angle brackets does not survive the cmd.exe shim that an
-    # npm-installed pac runs behind.
-    $result = [ordered]@{ rows = @(); error = $null }
-
-    if (-not (Test-Path -LiteralPath $script:scratchRoot)) {
-        New-Item -ItemType Directory -Path $script:scratchRoot -Force | Out-Null
-    }
-    $queryFile = Join-Path $script:scratchRoot "$([guid]::NewGuid().ToString('n')).xml"
-    [System.IO.File]::WriteAllText($queryFile, $FetchXml)
-
-    $arguments = @('env', 'fetch', '--xmlFile', $queryFile)
-    if ($EnvironmentUrl) { $arguments += @('--environment', $EnvironmentUrl) }
-    $run = Invoke-Tool -Name 'pac' -Arguments $arguments -Timeout ([Math]::Max($TimeoutSeconds, 120))
-    Remove-Item -LiteralPath $queryFile -Force -ErrorAction SilentlyContinue
-
-    if (-not $run.Ran -or $run.ExitCode -ne 0) {
-        $result.error = if ($run.Error) { $run.Error } elseif ($run.Stderr) { $run.Stderr } else { $run.Stdout }
-        return $result
-    }
-
-    # pac sizes each column to its widest value and may add columns (the primary key) that were
-    # not asked for, in any order. Cut every row at the header's column offsets: values such as a
-    # friendly name contain spaces, so splitting on whitespace would misalign them.
-    $lines = @($run.Stdout -split "`r?`n")
-    $headerIndex = -1
-    for ($index = 0; $index -lt $lines.Count; $index++) {
-        $tokens = @($lines[$index].Trim() -split '\s+')
-        if (@($Columns | Where-Object { $tokens -notcontains $_ }).Count -eq 0) { $headerIndex = $index; break }
-    }
-    if ($headerIndex -lt 0) {
-        # No header means no rows: pac prints nothing but the banner for an empty result.
-        return $result
-    }
-
-    $header = $lines[$headerIndex]
-    $offsets = @([regex]::Matches($header, '\S+') | ForEach-Object { [pscustomobject]@{ Name = $_.Value; Start = $_.Index } })
-    $rows = New-Object System.Collections.Generic.List[object]
-    for ($index = $headerIndex + 1; $index -lt $lines.Count; $index++) {
-        $line = $lines[$index]
-        if (-not $line.Trim()) { continue }
-        $row = [ordered]@{}
-        for ($column = 0; $column -lt $offsets.Count; $column++) {
-            $start = $offsets[$column].Start
-            $end = if ($column + 1 -lt $offsets.Count) { $offsets[$column + 1].Start } else { [Math]::Max($line.Length, $start) }
-            $value = if ($start -lt $line.Length) { $line.Substring($start, [Math]::Min($end, $line.Length) - $start).Trim() } else { '' }
-            $row[$offsets[$column].Name] = $value
-        }
-        $rows.Add([pscustomobject]$row)
-    }
-    $result['rows'] = $rows.ToArray()
-    return $result
-}
-
-function Get-DotnetGlobalToolIds {
-    param([bool]$DotnetPresent, [int]$Timeout = 30, $Run = $null)
-
-    $result = [ordered]@{ packageIds = @(); error = $null }
-    if (-not $DotnetPresent) {
-        $result.error = "'dotnet' was not found on PATH."
-        return $result
-    }
-
-    $run = $Run
-    if (-not $run) { $run = Invoke-Tool -Name 'dotnet' -Arguments @('tool', 'list', '--global') -Timeout $Timeout }
-    if (-not $run.Ran -or $run.ExitCode -ne 0) {
-        $result.error = if ($run.Error) { $run.Error } elseif ($run.Stderr) { $run.Stderr } else { $run.Stdout }
-        return $result
-    }
-
-    # `dotnet tool list` prints a fixed-width table with the package id in the first column.
-    $ids = New-Object System.Collections.Generic.List[string]
-    foreach ($line in ($run.Stdout -split "`r?`n")) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed -or $trimmed -match '^(Package Id|-{3,})') { continue }
-        $columns = $trimmed -split '\s{2,}'
-        if ($columns.Count -ge 1 -and $columns[0]) { $ids.Add($columns[0].ToLowerInvariant()) }
-    }
-    $result.packageIds = @($ids)
-    return $result
-}
-
-function Get-DotnetSdkReport {
-    param($Report, $Run = $null)
-
-    # `dotnet --version` reports the SDK a global.json pins, not the newest one installed, so a
-    # repository pinned to 6 would hide an installed 10. List the SDKs and take the highest.
-    if (-not $Report['present']) { return $Report }
-
-    $run = $Run
-    if (-not $run) { $run = Invoke-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30 }
-    if ($run.Ran -and $run.ExitCode -eq 0) {
-        $versions = @(foreach ($line in ($run.Stdout -split "`r?`n")) {
-            $match = [regex]::Match($line, '^\s*(\d+\.\d+\.\d+)')
-            if ($match.Success) { [version]$match.Groups[1].Value }
-        })
-        if ($versions.Count -gt 0) {
-            $Report['version'] = ($versions | Sort-Object -Descending | Select-Object -First 1).ToString()
-            $Report['note'] = $null
-        }
-        else {
-            $Report['version'] = $null
-            $Report['note'] = 'dotnet is installed but reports no SDK, only a runtime.'
-        }
-    }
-    return $Report
-}
-
-function ConvertTo-ComparableVersion {
-    param([string]$Text)
-
-    if (-not $Text) { return $null }
-    $match = [regex]::Match($Text, '(\d+)(\.(\d+))?(\.(\d+))?')
-    if (-not $match.Success) { return $null }
-
-    $major = [int]$match.Groups[1].Value
-    $minor = if ($match.Groups[3].Success) { [int]$match.Groups[3].Value } else { 0 }
-    $build = if ($match.Groups[5].Success) { [int]$match.Groups[5].Value } else { 0 }
-    return New-Object System.Version($major, $minor, $build)
-}
-
-function Get-VersionStatus {
-    param([bool]$Present, [string]$Version, [string]$Minimum, [string]$Preferred)
-
-    if (-not $Present) { return 'missing' }
-    if (-not $Minimum -and -not $Preferred) { return 'ok' }
-
-    $actual = ConvertTo-ComparableVersion -Text $Version
-    if (-not $actual) { return 'unknown' }
-
-    if ($Minimum -and $actual -lt (ConvertTo-ComparableVersion -Text $Minimum)) { return 'below-minimum' }
-    if ($Preferred -and $actual -lt (ConvertTo-ComparableVersion -Text $Preferred)) { return 'below-preferred' }
-    return 'ok'
-}
-
-# --------------------------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------------------------
 
@@ -974,51 +395,19 @@ $Path = (Resolve-Path -LiteralPath $Path).Path
 $trimmedPath = $Path.TrimEnd('\', '/')
 if ($trimmedPath -and $trimmedPath -notmatch '^[A-Za-z]:$') { $Path = $trimmedPath }
 
-$pluginRoot = Split-Path -Parent $PSScriptRoot
-$templatesRoot = Join-Path $pluginRoot 'templates'
+$skillRoot = Split-Path -Parent $PSScriptRoot
+$templatesRoot = Join-Path $skillRoot 'templates'
 $baselinePath = Join-Path $PSScriptRoot 'standards-baseline.json'
 
 $notes = New-Object System.Collections.Generic.List[string]
 
 try {
 
-# ---- tooling ------------------------------------------------------------------------------
-
-$versionProbes = @(
-    @{ Key = 'pwsh'; Name = 'pwsh'; Arguments = @('--version') }
-    @{ Key = 'powershell'; Name = 'powershell'; Arguments = @('-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()') }
-    @{ Key = 'git'; Name = 'git'; Arguments = @('--version') }
-    @{ Key = 'pac'; Name = 'pac'; Arguments = @('--version') }
-    @{ Key = 'dotnet'; Name = 'dotnet'; Arguments = @('--version') }
-    @{ Key = 'node'; Name = 'node'; Arguments = @('--version') }
-    @{ Key = 'npm'; Name = 'npm'; Arguments = @('--version') }
-    @{ Key = 'gh'; Name = 'gh'; Arguments = @('--version') }
-    @{ Key = 'playwrightCli'; Name = 'playwright-cli'; Arguments = @('--version') }
-)
-
-# Every probe is independent, so all of them start before any is waited for: the toolchain check
-# takes as long as the slowest one (usually pac) instead of the sum of all of them.
-$probeJobs = @{}
-foreach ($probe in $versionProbes) {
-    $probeJobs[$probe.Key] = Start-Tool -Name $probe.Name -Arguments $probe.Arguments -Timeout 30
+# Presence only: which tools exist is the setup-tools skill's report, not this one's.
+$tooling = [ordered]@{
+    git = [ordered]@{ present = (Resolve-Tool -Name 'git').Present }
+    pac = [ordered]@{ present = (Resolve-Tool -Name 'pac').Present }
 }
-$dotnetSdksJob = Start-Tool -Name 'dotnet' -Arguments @('--list-sdks') -Timeout 30
-$dotnetToolsJob = Start-Tool -Name 'dotnet' -Arguments @('tool', 'list', '--global') -Timeout 30
-
-$tooling = [ordered]@{}
-foreach ($probe in $versionProbes) {
-    $tooling[$probe.Key] = Get-ToolReport -Name $probe.Name -Run (Wait-Tool -Job $probeJobs[$probe.Key])
-}
-$tooling['dotnet'] = Get-DotnetSdkReport -Report $tooling['dotnet'] -Run (Wait-Tool -Job $dotnetSdksJob)
-$tooling['currentPowerShell'] = [ordered]@{
-    present = $true
-    version = $PSVersionTable.PSVersion.ToString()
-    edition = [string]$PSVersionTable.PSEdition
-}
-
-$dataverseMcpProxyPackageId = 'microsoft.powerplatform.dataverse.mcp'
-$dotnetGlobalTools = Get-DotnetGlobalToolIds -DotnetPresent $tooling.dotnet.present -Run (Wait-Tool -Job $dotnetToolsJob)
-$dataverseMcpProxyInstalled = @($dotnetGlobalTools.packageIds) -contains $dataverseMcpProxyPackageId
 
 # ---- repository ---------------------------------------------------------------------------
 
@@ -1181,202 +570,8 @@ $node = [ordered]@{
     jestConfigs    = Select-Files -Files $files -Pattern '(?i)(^|/)jest\.config\.(js|mjs|cjs|ts|json)$' -Limit 20
 }
 
-# ---- environment --------------------------------------------------------------------------
 
-$solutionReportLimit = 100
-$allUnmanagedSolutions = @()
-$script:solutionPublishers = @{}
-
-$environment = [ordered]@{
-    probed             = -not $SkipEnvironment
-    authProfiles       = @()
-    hasAuthProfile     = $false
-    connected          = $false
-    org                = $null
-    nameSignal         = 'unknown'
-    treatAsProduction  = $true
-    solutions          = @()
-    solutionsTruncated = $false
-    solutionCount      = 0
-    unmanagedSolutions = 0
-    publishers         = @()
-    resolvedPublisher  = $null
-    errors             = @()
-}
-
-if (-not $SkipEnvironment -and $tooling.pac.present) {
-    $authRun = Invoke-Tool -Name 'pac' -Arguments @('auth', 'list')
-    if ($authRun.Ran -and $authRun.ExitCode -eq 0) {
-        $environment['authProfiles'] = @(Get-AuthProfiles -Output $authRun.Stdout)
-        $environment['hasAuthProfile'] = @($environment['authProfiles']).Count -gt 0
-    }
-    else {
-        $environment.errors += "pac auth list failed: $(if ($authRun.Error) { $authRun.Error } else { $authRun.Stderr })"
-    }
-
-    $whoArguments = @('org', 'who')
-    if ($EnvironmentUrl) { $whoArguments += @('--environment', $EnvironmentUrl) }
-    $whoRun = Invoke-Tool -Name 'pac' -Arguments $whoArguments -Timeout ([Math]::Max($TimeoutSeconds, 120))
-
-    if ($whoRun.Ran -and $whoRun.ExitCode -eq 0) {
-        $org = Get-OrgFacts -Output $whoRun.Stdout
-        $environment['connected'] = [bool]$org['url']
-        $environment['org'] = $org
-        $environment['nameSignal'] = Get-EnvironmentNameSignal -Values @($org['friendlyName'], $org['url'])
-        # The standards treat an unverified environment as production. A name that merely looks
-        # like a dev environment is a signal, never a verification.
-        $environment['treatAsProduction'] = ($environment['nameSignal'] -ne 'dev')
-    }
-    else {
-        $detail = if ($whoRun.Error) { $whoRun.Error } elseif ($whoRun.Stderr) { $whoRun.Stderr } else { $whoRun.Stdout }
-        $environment.errors += "pac org who failed: $detail"
-        $notes.Add('No Dataverse environment is connected, so the core solution and publisher could not be read from the platform. Authenticate with pac auth create, or supply the values.') | Out-Null
-    }
-
-    if ($environment['connected']) {
-        $listArguments = @('solution', 'list')
-        if ($EnvironmentUrl) { $listArguments += @('--environment', $EnvironmentUrl) }
-        $listRun = Invoke-Tool -Name 'pac' -Arguments $listArguments -Timeout ([Math]::Max($TimeoutSeconds, 180))
-
-        if ($listRun.Ran -and $listRun.ExitCode -eq 0) {
-            $environmentSolutions = @(Get-EnvironmentSolutions -Output $listRun.Stdout)
-            $environment['solutionCount'] = $environmentSolutions.Count
-            # Only the unmanaged ones can be a DEV working solution. The core-solution guess below
-            # reads every one of them; only the list emitted in the report is capped, because it is
-            # long in a mature environment.
-            $allUnmanagedSolutions = @($environmentSolutions | Where-Object { -not $_.managed })
-            $environment['unmanagedSolutions'] = $allUnmanagedSolutions.Count
-            $environment['solutions'] = @($allUnmanagedSolutions | Select-Object -First $solutionReportLimit)
-            $environment['solutionsTruncated'] = $allUnmanagedSolutions.Count -gt $solutionReportLimit
-            if (@($environmentSolutions | Where-Object { $_.possiblyTruncated }).Count -gt 0) {
-                $notes.Add('pac solution list truncates the unique name column, and at least one name reached that width. Confirm a truncated name against the environment before using it as CoreSolution.') | Out-Null
-            }
-        }
-        else {
-            $environment.errors += "pac solution list failed: $(if ($listRun.Error) { $listRun.Error } else { $listRun.Stderr })"
-        }
-
-        # Publishers a project can own. Read-only ones are Microsoft's and never the project's.
-        $publisherQuery = "<fetch><entity name='publisher'><attribute name='publisherid'/><attribute name='uniquename'/><attribute name='friendlyname'/><attribute name='customizationprefix'/><filter><condition attribute='isreadonly' operator='eq' value='0'/><condition attribute='customizationprefix' operator='not-null'/></filter><order attribute='uniquename'/></entity></fetch>"
-        $publisherRun = Invoke-FetchXml -FetchXml $publisherQuery -Columns @('uniquename', 'friendlyname', 'customizationprefix')
-        if ($publisherRun.error) {
-            $environment.errors += "pac env fetch (publisher) failed: $($publisherRun.error)"
-        }
-        else {
-            # Every environment carries the Default Publisher (prefix new) and the CDS Default
-            # Publisher (prefix cr + hex). Their ids are fixed; their unique names are not.
-            $defaultPublisherIds = @('d21aab71-79e7-11dd-8874-00188b01e34f', '00000001-0000-0000-0000-00000000005a')
-            # pac pages the query and does not keep the order across pages: sort here.
-            $environment['publishers'] = @($publisherRun.rows | Where-Object { $_.customizationprefix } | Sort-Object uniquename | ForEach-Object {
-                [ordered]@{
-                    uniqueName   = $_.uniquename
-                    friendlyName = $_.friendlyname
-                    prefix       = $_.customizationprefix
-                    isDefault    = ($defaultPublisherIds -contains $_.publisherid) -or ($_.uniquename -match '^DefaultPublisher')
-                }
-            })
-        }
-
-        # The publisher of every unmanaged solution, so the core solution's publisher is one query
-        # away instead of a full solution export.
-        $solutionPublisherQuery = "<fetch><entity name='solution'><attribute name='uniquename'/><filter><condition attribute='ismanaged' operator='eq' value='0'/><condition attribute='isvisible' operator='eq' value='1'/></filter><link-entity name='publisher' from='publisherid' to='publisherid' alias='pub'><attribute name='uniquename'/><attribute name='customizationprefix'/></link-entity></entity></fetch>"
-        $solutionPublisherRun = Invoke-FetchXml -FetchXml $solutionPublisherQuery -Columns @('uniquename', 'pub.uniquename', 'pub.customizationprefix')
-        if ($solutionPublisherRun.error) {
-            $environment.errors += "pac env fetch (solution publisher) failed: $($solutionPublisherRun.error)"
-        }
-        else {
-            foreach ($row in $solutionPublisherRun.rows) {
-                $script:solutionPublishers[$row.uniquename] = [ordered]@{
-                    publisherUniqueName = $row.'pub.uniquename'
-                    publisherPrefix     = $row.'pub.customizationprefix'
-                }
-            }
-        }
-    }
-
-    if ($ResolvePublisherFromSolution -and $environment['connected']) {
-        $exportRoot = Join-Path $script:scratchRoot 'publisher'
-        New-Item -ItemType Directory -Path $exportRoot -Force | Out-Null
-        $zipPath = Join-Path $exportRoot "$ResolvePublisherFromSolution.zip"
-
-        $exportArguments = @('solution', 'export', '--name', $ResolvePublisherFromSolution, '--path', $zipPath, '--overwrite')
-        if ($EnvironmentUrl) { $exportArguments += @('--environment', $EnvironmentUrl) }
-        $exportRun = Invoke-Tool -Name 'pac' -Arguments $exportArguments -Timeout ([Math]::Max($TimeoutSeconds, 600))
-
-        if ($exportRun.Ran -and $exportRun.ExitCode -eq 0 -and (Test-Path -LiteralPath $zipPath)) {
-            $extractRoot = Join-Path $exportRoot 'unzipped'
-            try {
-                Expand-Archive -LiteralPath $zipPath -DestinationPath $extractRoot -Force
-                $solutionXml = Get-ChildItem -LiteralPath $extractRoot -Filter 'solution.xml' -Recurse -File |
-                    Select-Object -First 1
-                if ($solutionXml) {
-                    $facts = @(Get-SolutionFacts -Root $extractRoot -SolutionXmlFiles @(
-                        ($solutionXml.FullName.Substring($extractRoot.Length).TrimStart('\', '/') -replace '\\', '/')
-                    ))
-                    # The archive keeps solution.xml at the root, not under Other/, so parse it directly.
-                    if (-not $facts -or -not $facts[0].uniqueName) {
-                        $document = Read-XmlFile -FullPath $solutionXml.FullName
-                        $manifest = if ($document) { $document.SelectSingleNode('/ImportExportXml/SolutionManifest') } else { $null }
-                        if ($manifest) {
-                            $publisher = $manifest.SelectSingleNode('Publisher')
-                            $localized = if ($publisher) { $publisher.SelectSingleNode('LocalizedNames/LocalizedName') } else { $null }
-                            $environment['resolvedPublisher'] = [ordered]@{
-                                solutionUniqueName  = $(if ($manifest.SelectSingleNode('UniqueName')) { $manifest.SelectSingleNode('UniqueName').InnerText } else { $null })
-                                publisherUniqueName = $(if ($publisher -and $publisher.SelectSingleNode('UniqueName')) { $publisher.SelectSingleNode('UniqueName').InnerText } else { $null })
-                                publisherName       = $(if ($localized) { $localized.GetAttribute('description') } else { $null })
-                                publisherPrefix     = $(if ($publisher -and $publisher.SelectSingleNode('CustomizationPrefix')) { $publisher.SelectSingleNode('CustomizationPrefix').InnerText } else { $null })
-                                source              = "pac solution export $ResolvePublisherFromSolution"
-                            }
-                        }
-                    }
-                    else {
-                        $environment['resolvedPublisher'] = [ordered]@{
-                            solutionUniqueName  = $facts[0].uniqueName
-                            publisherUniqueName = $facts[0].publisherUniqueName
-                            publisherName       = $facts[0].publisherName
-                            publisherPrefix     = $facts[0].publisherPrefix
-                            source              = "pac solution export $ResolvePublisherFromSolution"
-                        }
-                    }
-                }
-                else {
-                    $environment.errors += 'The exported solution archive contained no solution.xml.'
-                }
-            }
-            catch {
-                $environment.errors += "The exported solution archive could not be read: $($_.Exception.Message)"
-            }
-        }
-        else {
-            $detail = if ($exportRun.Error) { $exportRun.Error } elseif ($exportRun.Stderr) { $exportRun.Stderr } else { $exportRun.Stdout }
-            $environment.errors += "pac solution export '$ResolvePublisherFromSolution' failed: $detail"
-        }
-    }
-}
-elseif (-not $SkipEnvironment) {
-    $environment['probed'] = $false
-    $environment.errors += 'pac is not installed; no environment fact was read.'
-}
-
-# ---- recommended tools -----------------------------------------------------------------------
-
-# Only the command-line side is visible from a script. Whether a Dataverse or Playwright MCP
-# server is registered depends on the agent running the skill, and that agent checks its own
-# tools: asking one agent's CLI (claude mcp list) would be wrong for every other agent.
-$recommendedTools = [ordered]@{
-    playwrightCli = [ordered]@{
-        installed = $tooling.playwrightCli.present
-        version   = $tooling.playwrightCli.version
-        install   = 'npm install -g @playwright/cli@latest'
-        mcpAlternative = 'claude mcp add playwright npx @playwright/mcp@latest'
-    }
-    dataverseMcpProxy = [ordered]@{
-        installed = $dataverseMcpProxyInstalled
-        install   = 'dotnet tool install --global Microsoft.PowerPlatform.Dataverse.MCP'
-        docs      = 'https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp'
-        note      = 'The proxy is one of two ways to connect: the remote endpoint needs no local install. Either way the server must be registered with the agent and the feature enabled on the environment.'
-    }
-}
+. (Join-Path $PSScriptRoot '_environment.ps1')
 
 # ---- deviations from the shipped standards -------------------------------------------------
 
@@ -1473,7 +668,7 @@ if ($baseline) {
         # The baseline is only trustworthy while the text it quotes is still in the template it
         # points at. Check that before using the assertion to judge somebody's repository.
         if ($assertion.assertedIn -and $assertion.assertedText) {
-            $assertedFile = Join-Path $pluginRoot ($assertion.assertedIn -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+            $assertedFile = Join-Path $skillRoot ($assertion.assertedIn -replace '/', [System.IO.Path]::DirectorySeparatorChar)
             if (Test-Path -LiteralPath $assertedFile) {
                 $content = [System.IO.File]::ReadAllText($assertedFile)
                 if (-not $content.Contains($assertion.assertedText)) {
@@ -1696,61 +891,6 @@ if ($baseline) {
                 $assessments += New-Assessment -Assertion $assertion -Status 'unknown' -Detected $null -Detail 'No detection is implemented for this assertion.'
             }
         }
-    }
-}
-
-# ---- toolchain -----------------------------------------------------------------------------
-
-# Either PowerShell satisfies the requirement, so report the newest one available: pwsh when it is
-# installed, Windows PowerShell otherwise. This script is itself running in one of them.
-$powerShellVersion = $tooling.currentPowerShell.version
-foreach ($candidate in @($tooling.pwsh, $tooling.powershell)) {
-    if ($candidate.present -and $candidate.version) {
-        $candidateVersion = ConvertTo-ComparableVersion -Text $candidate.version
-        if ($candidateVersion -and $candidateVersion -gt (ConvertTo-ComparableVersion -Text $powerShellVersion)) {
-            $powerShellVersion = $candidate.version
-        }
-    }
-}
-
-$requirements = @()
-if ($baseline) {
-    foreach ($assertion in @($baseline.assertions | Where-Object { $_.kind -eq 'machine' })) {
-        if ($assertion.tool -eq 'powershell') {
-            $toolPresent = $true
-            $version = $powerShellVersion
-        }
-        else {
-            $report = $tooling[$assertion.tool]
-            $toolPresent = [bool]($report -and $report.present)
-            $version = if ($report) { $report.version } else { $null }
-        }
-
-        $requirement = [ordered]@{
-            id        = $assertion.id
-            tool      = $assertion.topic
-            tier      = $assertion.tier
-            present   = $toolPresent
-            version   = $version
-            minimum   = $assertion.minimum
-            preferred = $assertion.preferred
-            status    = Get-VersionStatus -Present $toolPresent -Version $version -Minimum $assertion.minimum -Preferred $assertion.preferred
-            install   = $assertion.install
-        }
-        if ($assertion.tool -eq 'node' -and $requirement['status'] -eq 'ok') {
-            # Vitest only accepts even (LTS-line) Node majors, so 23 or 25 clears the minimum and
-            # still cannot run the tests. A warning, not a status: the minimum is unchanged.
-            $nodeVersion = ConvertTo-ComparableVersion -Text $version
-            if ($nodeVersion -and ($nodeVersion.Major % 2) -eq 1) {
-                $requirement['warning'] = "Node $($nodeVersion.Major) is an odd-numbered, non-LTS release: the pinned Vitest does not support it. Use $($assertion.preferred) or another even-numbered major."
-            }
-        }
-        if ($assertion.tool -eq 'pac') {
-            # pac without an authentication profile cannot generate early-bound classes, create a
-            # feature solution or read the environment, so the profile is part of the requirement.
-            $requirement['authProfile'] = if ($environment.probed) { $environment.hasAuthProfile } else { $null }
-        }
-        $requirements += $requirement
     }
 }
 
@@ -2020,17 +1160,13 @@ if ($environment['treatAsProduction'] -and $environment['connected']) {
     $recommendation['warnings'] += "The connected environment ($($environment.org.friendlyName)) does not look like a DEV environment (name signal: $($environment.nameSignal)). The standards permit write operations in DEV only: confirm it is DEV before the agent writes anything."
 }
 
+
 # ---- output --------------------------------------------------------------------------------
 
 $report = [ordered]@{
     schemaVersion  = 1
     generatedAt    = (Get-Date).ToString('o')
-    pluginRoot     = $pluginRoot
-    tooling        = $tooling
-    toolchain      = [ordered]@{
-        requirements = $requirements
-        recommended  = $recommendedTools
-    }
+    skillRoot      = $skillRoot
     repository     = $repository
     dotnet         = $dotnet
     node           = $node
@@ -2049,6 +1185,7 @@ $report = [ordered]@{
     recommendation = $recommendation
     notes          = @($notes)
 }
+
 
 $report | ConvertTo-Json -Depth 12
 

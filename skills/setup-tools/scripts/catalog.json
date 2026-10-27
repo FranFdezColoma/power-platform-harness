@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "description": "The tools a developer machine needs for the harness and the official skills, with the minimum and preferred version of each and where that version is stated. check-tools.ps1 reports the machine against this list. assertedIn/assertedText are relative to the setup-project skill: tests/Test-Repository.ps1 fails when the quoted text is no longer in that file.",
+  "maintenance": "Changing a version in skills/setup-project/templates/docs/agents/toolchain.md means updating the matching entry here in the same commit.",
+  "assertions": [
+    {
+      "id": "machine.powershell",
+      "kind": "machine",
+      "topic": "PowerShell",
+      "tool": "powershell",
+      "tier": "required",
+      "minimum": "5.1",
+      "preferred": "7",
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| PowerShell | 5.1 | 7 |",
+      "install": "winget install --id Microsoft.PowerShell --source winget",
+      "guidance": "Windows PowerShell 5.1 runs the harness scripts; pac and PCF tooling are tested against PowerShell 7."
+    },
+    {
+      "id": "machine.git",
+      "kind": "machine",
+      "topic": "git",
+      "tool": "git",
+      "tier": "required",
+      "minimum": null,
+      "preferred": null,
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| git | any | latest |",
+      "install": "winget install --id Git.Git --source winget",
+      "guidance": "One branch per unit of work needs git. Any version works."
+    },
+    {
+      "id": "machine.dotnet",
+      "kind": "machine",
+      "topic": ".NET SDK",
+      "tool": "dotnet",
+      "tier": "required",
+      "minimum": "8",
+      "preferred": "10",
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| .NET SDK | 8 | 10 |",
+      "install": "winget install --id Microsoft.DotNet.SDK.10 --source winget",
+      "guidance": "Builds and tests plugins and Custom APIs, and installs pac. The SDK on the machine is independent of the framework the plugins target."
+    },
+    {
+      "id": "machine.node",
+      "kind": "machine",
+      "topic": "Node.js",
+      "tool": "node",
+      "tier": "required",
+      "minimum": "22.13",
+      "preferred": "24",
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| Node.js | 22.13 | 24 |",
+      "install": "winget install --id OpenJS.NodeJS.LTS --source winget",
+      "guidance": "Tests and lints web resources and PCF controls. The pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
+    },
+    {
+      "id": "machine.pac",
+      "kind": "machine",
+      "topic": "Power Platform CLI (pac)",
+      "tool": "pac",
+      "tier": "required",
+      "minimum": null,
+      "preferred": null,
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| Power Platform CLI (`pac`) | any | latest |",
+      "install": "dotnet tool install --global Microsoft.PowerApps.CLI.Tool",
+      "guidance": "Generates PCF and plugin projects and early-bound classes, creates feature solutions and reads the environment. It also needs an authentication profile against DEV."
+    }
+  ]
+}

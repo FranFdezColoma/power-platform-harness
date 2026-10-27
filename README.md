@@ -1,5 +1,9 @@
 # Power Platform Harness
 
+> **This branch is mid-way through 2.0.** The plugin's scripts have moved under `skills/` (see
+> `docs/design/2.0-architecture.md`); the paths and commands below still describe 1.x and are
+> rewritten at the end of 2.0. `main` holds the current release.
+
 A Claude Code plugin that installs the same development harness in every Power Platform /
 Dynamics 365 CE repository, so the coding agent knows the rules: what to read before a change,
 how to separate business logic from the platform, which solution a component goes into, and when a

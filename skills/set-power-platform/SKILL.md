@@ -2,7 +2,7 @@
 name: set-power-platform
 description: "Install the Power Platform / Dynamics 365 CE harness in this folder: agent instructions, toolchain requirements, development standards per technology, and the per-branch feature solution workflow. Checks the required and recommended tools and helps connect pac to DEV. Works on an empty folder and on an existing project, where it reads the publisher, prefix, core solution and stack from the repository and the environment instead of asking, and adapts the standards to the versions the project already uses."
 disable-model-invocation: true
-allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" *), Bash(dotnet tool install --global Microsoft.PowerApps.CLI.Tool*), Bash(pac auth create *), Bash(pac auth list*), Bash(pac org who*), Bash(pac solution list*), Bash(git init*), Bash(git status*), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Read, Write, Edit, Glob, Grep, AskUserQuestion
+allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(dotnet tool install --global Microsoft.PowerApps.CLI.Tool*), Bash(pac auth create *), Bash(pac auth list*), Bash(pac org who*), Bash(pac solution list*), Bash(git init*), Bash(git status*), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Install the Power Platform harness
@@ -12,11 +12,11 @@ Two jobs, decided by what is already in the folder:
 - **Empty folder** — scaffold the full harness: `CLAUDE.md`, `.claude/settings.json` (permission rules), `scripts/new-feature.ps1` (branch + feature solution), `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
 - **Existing project** — adopt the harness into it: add only what is missing, keep what the project already has, and adapt the standards to the stack the project actually uses. Never set a version, framework or layout the project does not use.
 
-Two bundled scripts do the work. `discover.ps1` reads; `scaffold.ps1` writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
+Three of the plugin's scripts do the work. `check-tools.ps1` (setup-tools skill) and `discover.ps1` (setup-project skill) read; `scaffold.ps1` (setup-project skill) writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
 
 ## Running the scripts
 
-Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not installed, run the same script and arguments with `powershell -NoProfile -ExecutionPolicy Bypass -File` instead: both scripts run on Windows PowerShell 5.1. If neither exists, stop: nothing in this skill can run without PowerShell. Tell the user to install it (`docs/agents/toolchain.md` in the templates has the command) and end there.
+Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not installed, run the same script and arguments with `powershell -NoProfile -ExecutionPolicy Bypass -File` instead: all three run on Windows PowerShell 5.1. If neither exists, stop: nothing in this skill can run without PowerShell. Tell the user to install it (`docs/agents/toolchain.md` in the templates has the command) and end there.
 
 ## Asking the user: hard constraint
 
@@ -38,15 +38,16 @@ Decide what language this conversation happens in before anything else, includin
 
 ## 1. Discover
 
-One command, before any question:
+Two commands, before any question:
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/discover.ps1" -Path .
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1"
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" -Path .
 ```
 
 If the user already gave a publisher prefix (as an argument to this skill or earlier in the session), add `-PublisherPrefix <prefix>`: discovery then looks up the publisher that owns it, so the unique name is not asked for.
 
-Add `-SkipEnvironment` only when the user says the environment is irrelevant or unreachable. It reads the repository, the tools on this machine and, through `pac`, the connected environment; it writes nothing, in the repo or in Dataverse. Everything downstream comes from its JSON.
+Add `-SkipEnvironment` to both only when the user says the environment is irrelevant or unreachable. `check-tools.ps1` reads the tools on this machine; `discover.ps1` reads the repository and, through `pac`, the connected environment. Neither writes anything, in the repo or in Dataverse. Everything downstream comes from their JSON: `tooling` and `toolchain` from `check-tools.ps1`, everything else from `discover.ps1`.
 
 If `standards.staleBaseline` is not empty, report it as a bug in this plugin, not in the user's project, and continue.
 
@@ -65,7 +66,7 @@ A requirement may also carry a `warning` (an odd-numbered Node release, for exam
 
 None of these stops the skill: the harness only writes files. Every requirement that is not `ok` goes into the final report as pending.
 
-**`pac` missing.** Offer to install it with `AskUserQuestion` (install now / skip). On approval, run `dotnet tool install --global Microsoft.PowerApps.CLI.Tool`; it needs the .NET SDK, so if `dotnet` is missing, say so and leave `pac` pending instead. After a successful install, tell the user that a new terminal may be needed for `pac` to be on PATH, and re-run Discover.
+**`pac` missing.** Offer to install it with `AskUserQuestion` (install now / skip). On approval, run `dotnet tool install --global Microsoft.PowerApps.CLI.Tool`; it needs the .NET SDK, so if `dotnet` is missing, say so and leave `pac` pending instead. After a successful install, tell the user that a new terminal may be needed for `pac` to be on PATH, and re-run both Discover commands.
 
 **Recommended tools.** Two are recommended, never required:
 
@@ -123,7 +124,7 @@ When `layout.folders` deviates, pass `-SkipLayout`: creating `src/PowerPlatform/
 Run the dry run first and read its output yourself; do not make the user confirm twice:
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -Json -DryRun <flags>
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -Json -DryRun <flags>
 ```
 
 `<flags>` is exactly what `recommendation.scaffoldArguments` lists — empty for a new project — plus `-SkipLayout` if step 5 decided it. `-Json` keeps the output parseable. The script validates every value, so a bad prefix or name surfaces here, before anything is written.
@@ -144,7 +145,7 @@ Report the warnings in `recommendation.warnings` alongside the dry run. If the s
 `-SkipExisting` keeps the project's `CLAUDE.md`, which means nothing yet points the agent at `docs/agents/development-standards.md` and the whole harness is unreachable. Fix it without paraphrasing: render the templates into a throwaway folder, read the rendered `CLAUDE.md`, and merge its sections into the existing one.
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -TargetPath <temp folder> -SkipLayout
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -TargetPath <temp folder> -SkipLayout
 ```
 
 Keep the project's own content. Add the harness sections it lacks, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Show the user the diff. If the existing `CLAUDE.md` contradicts a harness rule, report the conflict instead of resolving it silently.

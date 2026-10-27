@@ -39,7 +39,9 @@ $goldenRoot = if ($Local) { Join-Path $PSScriptRoot '.local' } else { Join-Path 
 # Which top-level sections each script reports. A section several scripts report is compared
 # field by field: each script must agree with the golden file on every field it emits.
 $scripts = @(
-    @{ Path = 'scripts/discover.ps1'; Sections = @('tooling', 'toolchain', 'repository', 'dotnet', 'node', 'solutions', 'pcfControls', 'environment', 'featureSolutionsInEnvironment', 'standards', 'prefixEvidence', 'proposedValues', 'recommendation', 'notes') }
+    @{ Path = 'skills/setup-tools/scripts/check-tools.ps1'; Sections = @('tooling', 'toolchain') }
+    @{ Path = 'skills/connect/scripts/check-connections.ps1'; Sections = @('environment', 'featureSolutionsInEnvironment'); EnvironmentOnly = $true }
+    @{ Path = 'skills/setup-project/scripts/discover.ps1'; Sections = @('repository', 'dotnet', 'node', 'solutions', 'pcfControls', 'environment', 'featureSolutionsInEnvironment', 'standards', 'prefixEvidence', 'proposedValues', 'recommendation', 'notes'); TakesPath = $true }
 )
 
 # Sections that describe the machine running the script, not the repository it inspects.
@@ -67,13 +69,20 @@ function ConvertTo-Comparable {
 }
 
 function Invoke-Discovery {
-    param([string]$Script, [string]$FixturePath)
+    param($Script, [string]$FixturePath)
 
-    $arguments = @('-NoProfile', '-File', (Join-Path $repoRoot $Script), '-Path', $FixturePath)
-    if (-not $Local) { $arguments += '-SkipEnvironment' }
+    $arguments = @('-NoProfile', '-File', (Join-Path $repoRoot $Script.Path))
+    if ($Script.TakesPath) { $arguments += @('-Path', $FixturePath) }
+    if (-not $Local -and -not $Script.EnvironmentOnly) { $arguments += '-SkipEnvironment' }
     $output = & pwsh @arguments
-    if ($LASTEXITCODE -ne 0) { throw "$Script failed on $FixturePath with exit code $LASTEXITCODE." }
+    if ($LASTEXITCODE -ne 0) { throw "$($Script.Path) failed on $FixturePath with exit code $LASTEXITCODE." }
     return Get-NormalizedJson -Text ($output -join "`n") -FixturePath $FixturePath
+}
+
+# A script that only reads the environment has nothing to report without one.
+function Test-Runs {
+    param($Script)
+    return $Local -or -not $Script.EnvironmentOnly
 }
 
 $scratch = Join-Path ([System.IO.Path]::GetTempPath()) "pph-golden-$([guid]::NewGuid().ToString('n'))"
@@ -97,9 +106,8 @@ try {
     $fixtures['empty'] = $empty
 
     $scaffolded = Join-Path $scratch 'scaffolded'
-    $scaffold = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -Filter 'scaffold.ps1' |
-        Where-Object { $_.FullName -notmatch '\\tests\\' } | Select-Object -First 1
-    & pwsh -NoProfile -File $scaffold.FullName -ProjectName Northwind -PublisherUniqueName NorthwindConsulting `
+    $scaffold = Join-Path $repoRoot 'skills/setup-project/scripts/scaffold.ps1'
+    & pwsh -NoProfile -File $scaffold -ProjectName Northwind -PublisherUniqueName NorthwindConsulting `
         -PublisherPrefix nwc -CoreSolution NorthwindCore -ProjectDescription 'Test scaffold.' -TargetPath $scaffolded -Json | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "scaffold.ps1 failed with exit code $LASTEXITCODE." }
     $fixtures['scaffolded'] = $scaffolded
@@ -113,7 +121,8 @@ try {
         if ($Update) {
             $combined = [ordered]@{}
             foreach ($script in $scripts) {
-                $result = Invoke-Discovery -Script $script.Path -FixturePath $fixtures[$name]
+                if (-not (Test-Runs $script)) { continue }
+                $result = Invoke-Discovery -Script $script -FixturePath $fixtures[$name]
                 foreach ($section in $script.Sections) {
                     if (-not $Local -and $machineSections -contains $section) { continue }
                     if (-not $combined.Contains($section)) { $combined[$section] = $result.$section }
@@ -132,7 +141,8 @@ try {
 
         $covered = @{}
         foreach ($script in $scripts) {
-            $result = Invoke-Discovery -Script $script.Path -FixturePath $fixtures[$name]
+            if (-not (Test-Runs $script)) { continue }
+            $result = Invoke-Discovery -Script $script -FixturePath $fixtures[$name]
             foreach ($section in $script.Sections) {
                 if (-not $Local -and $machineSections -contains $section) { continue }
                 $covered[$section] = $true
