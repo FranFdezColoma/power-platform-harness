@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup><ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally></PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.CrmSdk.CoreAssemblies" Version="9.0.2.56" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="FakeXrmEasy.Plugins.v9" Version="2.9.4" />
+  </ItemGroup>
+</Project>

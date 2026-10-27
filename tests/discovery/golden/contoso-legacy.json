@@ -1,0 +1,532 @@
+{
+  "repository": {
+    "path": "<fixture>",
+    "classification": "existing",
+    "fileCount": 12,
+    "walkTruncated": false,
+    "prunedFolders": [
+      "source/plugins/Contoso.Plugins.Tests/bin",
+      "source/plugins/Contoso.Plugins.Tests/obj"
+    ],
+    "git": {
+      "isRepository": true,
+      "branch": "feature/v2-official-skills",
+      "commitCount": 42,
+      "remoteUrl": "https://github.com/FranFdezColoma/power-platform-harness.git",
+      "isDirty": true
+    },
+    "harness": {
+      "installed": true,
+      "markers": [
+        "CLAUDE.md"
+      ],
+      "presentFiles": [
+        "CLAUDE.md"
+      ],
+      "missingFiles": [
+        ".gitignore",
+        ".claude/settings.json",
+        "docs/agents/development-standards.md",
+        "docs/agents/toolchain.md",
+        "docs/development/csharp-plugins.md",
+        "docs/development/custom-apis.md",
+        "docs/development/dataverse-schema.md",
+        "docs/development/javascript.md",
+        "docs/development/pcf.md",
+        "docs/development/solutions.md",
+        "docs/development/webresources-project.md",
+        "scripts/new-feature.ps1",
+        "src/PowerPlatform/PowerPlatform.sln",
+        "src/PowerPlatform/Plugins/{{project_name}}.Common/{{project_name}}.Common.csproj",
+        "src/PowerPlatform/Plugins/{{project_name}}.Common/PluginBase.cs",
+        "src/PowerPlatform/WebResources/{{project_name}}.WebResources/{{project_name}}.WebResources.esproj",
+        "src/PowerPlatform/WebResources/{{project_name}}.WebResources/eslint.config.mjs",
+        "src/PowerPlatform/WebResources/{{project_name}}.WebResources/package.json",
+        "src/PowerPlatform/WebResources/{{project_name}}.WebResources/vitest.config.mjs"
+      ]
+    },
+    "agentDocs": {
+      "claudeMd": true,
+      "agentsMd": false,
+      "copilotMd": false,
+      "cursorRules": false,
+      "claudeMdFiles": [
+        "CLAUDE.md"
+      ],
+      "docsAgents": [],
+      "docsDevelopment": [],
+      "adrs": []
+    },
+    "layout": {
+      "expected": {
+        "src/PowerPlatform/Plugins": false,
+        "src/PowerPlatform/CustomAPIs": false,
+        "src/PowerPlatform/WebResources": false,
+        "docs/adr": false
+      },
+      "actual": {
+        "solutionFolders": [
+          "solutions/ContosoCore"
+        ],
+        "pluginFolders": [
+          "source/plugins"
+        ],
+        "customApiFolders": [],
+        "webResourceFolders": [
+          "source/webresources"
+        ],
+        "testFolders": []
+      }
+    },
+    "pipelines": {
+      "githubWorkflows": [],
+      "azurePipelines": []
+    },
+    "counts": {
+      "csharp": 1,
+      "javascript": 1,
+      "typescript": 0,
+      "codeArtifacts": 7
+    }
+  },
+  "dotnet": {
+    "solutionFiles": [],
+    "projects": [
+      {
+        "path": "source/plugins/Contoso.Plugins.Tests/Contoso.Plugins.Tests.csproj",
+        "role": "test",
+        "sdkStyle": true,
+        "targetFrameworks": [
+          "net472"
+        ],
+        "rootNamespace": null,
+        "assemblyName": null,
+        "signAssembly": false,
+        "dataverseSignals": true,
+        "projectReferences": [
+          "source/plugins/Contoso.Plugins/Contoso.Plugins.csproj"
+        ],
+        "packages": [
+          {
+            "id": "xunit",
+            "version": "2.4.2"
+          },
+          {
+            "id": "FakeXrmEasy.Plugins.v9",
+            "version": "2.5.0"
+          }
+        ],
+        "readError": null
+      },
+      {
+        "path": "source/plugins/Contoso.Plugins/Contoso.Plugins.csproj",
+        "role": "dataverse",
+        "sdkStyle": false,
+        "targetFrameworks": [
+          "net472"
+        ],
+        "rootNamespace": "Contoso.Plugins",
+        "assemblyName": "Contoso.Plugins",
+        "signAssembly": true,
+        "dataverseSignals": true,
+        "projectReferences": [],
+        "packages": [
+          {
+            "id": "Microsoft.CrmSdk.CoreAssemblies",
+            "version": "9.0.2.45"
+          }
+        ],
+        "readError": null
+      }
+    ],
+    "projectCount": 2,
+    "esprojFiles": []
+  },
+  "node": {
+    "packages": [
+      {
+        "path": "source/webresources/package.json",
+        "name": "contoso-webresources",
+        "version": "1.0.0",
+        "private": true,
+        "scripts": [
+          "test",
+          "lint"
+        ],
+        "dependencies": {
+          "jest": "29.7.0",
+          "eslint": "8.57.0"
+        },
+        "readError": null
+      }
+    ],
+    "eslintFlat": [],
+    "eslintLegacy": [
+      "source/webresources/.eslintrc.json"
+    ],
+    "tsconfigs": [],
+    "vitestConfigs": [],
+    "jestConfigs": []
+  },
+  "solutions": [
+    {
+      "folder": "solutions/ContosoCore",
+      "manifest": "solutions/ContosoCore/Other/Solution.xml",
+      "uniqueName": "ContosoCore",
+      "displayName": "Contoso Core",
+      "version": "1.4.0.0",
+      "managed": false,
+      "publisherUniqueName": "ContosoLtd",
+      "publisherName": "Contoso Ltd",
+      "publisherPrefix": "cnt",
+      "readError": null
+    }
+  ],
+  "pcfControls": [
+    {
+      "manifest": "source/pcf/LeadScore/ControlManifest.Input.xml",
+      "namespace": "Contoso",
+      "constructor": "LeadScore",
+      "version": "0.0.1",
+      "controlType": "standard",
+      "platformLibraries": [
+        {
+          "name": "React",
+          "version": "18.2.0"
+        }
+      ],
+      "readError": null
+    }
+  ],
+  "environment": {
+    "probed": false,
+    "authProfiles": [],
+    "hasAuthProfile": false,
+    "connected": false,
+    "org": null,
+    "nameSignal": "unknown",
+    "treatAsProduction": true,
+    "solutions": [],
+    "solutionsTruncated": false,
+    "solutionCount": 0,
+    "unmanagedSolutions": 0,
+    "publishers": [],
+    "resolvedPublisher": null,
+    "errors": []
+  },
+  "featureSolutionsInEnvironment": [],
+  "standards": {
+    "baselineFound": true,
+    "assessments": [
+      {
+        "id": "plugins.targetFramework",
+        "kind": "stack",
+        "topic": "C# plugin target framework",
+        "standard": "net462",
+        "standardLabel": ".NET Framework 4.6.2",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "deviates",
+        "detected": [
+          "net472"
+        ],
+        "detail": "",
+        "evidence": [
+          "source/plugins/Contoso.Plugins/Contoso.Plugins.csproj -> net472"
+        ],
+        "guidance": "Dataverse sandbox plug-ins must target the .NET Framework version the platform supports. If the project targets something else, that is the project's reality: record it and do not retarget existing assemblies as part of adopting the harness."
+      },
+      {
+        "id": "plugins.sdkStyle",
+        "kind": "stack",
+        "topic": "C# project style",
+        "standard": "sdk-style",
+        "standardLabel": "SDK-style projects, deployed as Dataverse .nupkg plug-in packages",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "deviates",
+        "detected": "legacy csproj",
+        "detail": "",
+        "evidence": [
+          "source/plugins/Contoso.Plugins/Contoso.Plugins.csproj"
+        ],
+        "guidance": "Legacy non-SDK csproj files still build. Converting them is a migration with its own risk, not a side effect of installing standards."
+      },
+      {
+        "id": "plugins.strongNaming",
+        "kind": "stack",
+        "topic": "Assembly strong naming",
+        "standard": "unsigned",
+        "standardLabel": "Assemblies are not strong-named",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "deviates",
+        "detected": "strong-named",
+        "detail": "",
+        "evidence": [
+          "source/plugins/Contoso.Plugins/Contoso.Plugins.csproj",
+          "source/plugins/Contoso.Plugins/contoso.snk"
+        ],
+        "guidance": "A signed assembly already registered in Dataverse cannot be unsigned without re-registering every step. If the project signs, the standard has to follow the project."
+      },
+      {
+        "id": "plugins.test.xunit",
+        "kind": "stack",
+        "topic": "Plugin unit test framework",
+        "standard": "xunit 2.9.3",
+        "standardLabel": "xUnit 2.9.3",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "deviates",
+        "detected": [
+          "2.4.2"
+        ],
+        "detail": "",
+        "evidence": [
+          "source/plugins/Contoso.Plugins.Tests/Contoso.Plugins.Tests.csproj -> xunit 2.4.2"
+        ],
+        "guidance": "A project on NUnit or MSTest, or on a different xUnit version, keeps it. Two test frameworks in one repository is worse than an out-of-date standard."
+      },
+      {
+        "id": "plugins.test.fakeXrmEasyPlugins",
+        "kind": "stack",
+        "topic": "Dataverse test double",
+        "standard": "FakeXrmEasy.Plugins.v9 2.9.4",
+        "standardLabel": "FakeXrmEasy.Plugins.v9 2.9.4",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "deviates",
+        "detected": [
+          "FakeXrmEasy.Plugins.v9 2.5.0"
+        ],
+        "detail": "",
+        "evidence": [
+          "source/plugins/Contoso.Plugins.Tests/Contoso.Plugins.Tests.csproj -> FakeXrmEasy.Plugins.v9 2.5.0"
+        ],
+        "guidance": "FakeXrmEasy 2.x requires a licence key at runtime; 1.x does not. A project on 1.x is a deliberate choice, not an oversight."
+      },
+      {
+        "id": "plugins.test.fakeXrmEasyMessages",
+        "kind": "stack",
+        "topic": "Dataverse message simulation",
+        "standard": "FakeXrmEasy.Messages.v9 2.9.4",
+        "standardLabel": "FakeXrmEasy.Messages.v9 2.9.4",
+        "targetFile": "docs/development/csharp-plugins.md",
+        "status": "not-applicable",
+        "detected": null,
+        "detail": "The package is optional and is not referenced.",
+        "evidence": [],
+        "guidance": "Only relevant where the repository already simulates messages or Custom APIs in tests."
+      },
+      {
+        "id": "pcf.controlType",
+        "kind": "stack",
+        "topic": "PCF control type",
+        "standard": "virtual",
+        "standardLabel": "React virtual controls (control-type=\"virtual\") with platform libraries",
+        "targetFile": "docs/development/pcf.md",
+        "status": "deviates",
+        "detected": [
+          "standard"
+        ],
+        "detail": "",
+        "evidence": [
+          "source/pcf/LeadScore/ControlManifest.Input.xml -> control-type=standard"
+        ],
+        "guidance": "Standard controls that bundle their own React work today. Migrating them to virtual is a change with import-time risk; it does not belong in a scaffolding step."
+      },
+      {
+        "id": "pcf.platformLibrary.react",
+        "kind": "stack",
+        "topic": "PCF React platform library",
+        "standard": "16.14.0",
+        "standardLabel": "React platform library 16.14.0",
+        "targetFile": "docs/development/pcf.md",
+        "status": "deviates",
+        "detected": [
+          "18.2.0"
+        ],
+        "detail": "",
+        "evidence": [
+          "source/pcf/LeadScore/ControlManifest.Input.xml -> React 18.2.0"
+        ],
+        "guidance": "The version in ControlManifest.Input.xml is what the environment actually loads. The standard must state the version the repository ships, never a newer one."
+      },
+      {
+        "id": "pcf.platformLibrary.fluent",
+        "kind": "stack",
+        "topic": "PCF Fluent UI platform library",
+        "standard": "9.46.2",
+        "standardLabel": "Fluent UI v9 platform library 9.46.2",
+        "targetFile": "docs/development/pcf.md",
+        "status": "deviates",
+        "detected": null,
+        "detail": "No Fluent platform library is declared, so the control bundles its own copy.",
+        "evidence": [
+          "source/pcf/LeadScore/ControlManifest.Input.xml"
+        ],
+        "guidance": "A Fluent platform-library version higher than the one the target environment supports fails solution import. Record the repository's version, not the standard's."
+      },
+      {
+        "id": "pcf.test",
+        "kind": "stack",
+        "topic": "PCF test framework",
+        "standard": "vitest",
+        "standardLabel": "Vitest + Testing Library",
+        "targetFile": "docs/development/pcf.md",
+        "status": "deviates",
+        "detected": "jest 29.7.0",
+        "detail": "The repository tests with Jest.",
+        "evidence": [
+          "source/webresources/package.json"
+        ],
+        "guidance": "A repository already on Jest keeps Jest. Running both runners in one repository doubles the configuration surface for no gain."
+      },
+      {
+        "id": "javascript.language",
+        "kind": "stack",
+        "topic": "Web resource language level",
+        "standard": "es2020-no-build",
+        "standardLabel": "Plain ES2020 JavaScript, no build or bundling step",
+        "targetFile": "docs/development/javascript.md",
+        "status": "match",
+        "detected": "plain JavaScript",
+        "detail": "",
+        "evidence": [
+          "source/webresources"
+        ],
+        "guidance": "Web resources authored in TypeScript, or bundled, contradict this rule end to end: the file committed is no longer the file deployed. Decide which one the project follows before the first change, not during it."
+      },
+      {
+        "id": "javascript.test",
+        "kind": "stack",
+        "topic": "Web resource test framework",
+        "standard": "vitest+node",
+        "standardLabel": "Vitest with the node environment",
+        "targetFile": "docs/development/javascript.md",
+        "status": "deviates",
+        "detected": "jest 29.7.0",
+        "detail": "The repository tests with Jest.",
+        "evidence": [
+          "source/webresources/package.json"
+        ],
+        "guidance": "Same rule as PCF: one runner per repository. A project that runs its web resource tests under jsdom keeps it: the environment is a per-project choice, not a defect."
+      },
+      {
+        "id": "javascript.lint",
+        "kind": "stack",
+        "topic": "Lint configuration",
+        "standard": "eslint10-flat",
+        "standardLabel": "ESLint 10 with flat config",
+        "targetFile": "docs/development/javascript.md",
+        "status": "deviates",
+        "detected": "eslint 8.57.0 (.eslintrc)",
+        "detail": "",
+        "evidence": [
+          "source/webresources/.eslintrc.json"
+        ],
+        "guidance": "ESLint 8 with .eslintrc, or ESLint 9, is not a defect. ESLint 9 reached end of life on 2026-08-06; moving to 10 enables three more recommended rules and is its own task, as is migrating to flat config."
+      },
+      {
+        "id": "webresources.buildProject",
+        "kind": "layout",
+        "topic": "WebResources build/test project",
+        "standard": "esproj",
+        "standardLabel": "SDK-style .esproj project (Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863, version pinned) with Vitest + ESLint tooling, under src/PowerPlatform/WebResources/<ProjectName>.WebResources/",
+        "targetFile": "docs/development/webresources-project.md",
+        "status": "deviates",
+        "detected": "package.json without an .esproj",
+        "detail": "Web resources have test/lint tooling but no SDK-style project file.",
+        "evidence": [
+          "source/webresources/package.json"
+        ],
+        "guidance": "A repository that already edits web resources without this project is not broken. Never retrofit an existing, differently structured WebResources setup: offer this during reconciliation instead of writing it silently. An existing .esproj that pins a different SDK version keeps its version; only an .esproj with no version at all fails to load and needs one."
+      },
+      {
+        "id": "layout.folders",
+        "kind": "layout",
+        "topic": "Repository layout",
+        "standard": "src/PowerPlatform/{Plugins,CustomAPIs,WebResources} in src/PowerPlatform/PowerPlatform.sln, one project per table or Custom API with its .Tests project beside it, docs/adr",
+        "standardLabel": "The folder layout the standards reference by path: src/PowerPlatform/ with PowerPlatform.sln, a shared <ProjectName>.Common project, and each plugin or Custom API project next to its test project",
+        "targetFile": null,
+        "status": "deviates",
+        "detected": [
+          "source/plugins (the standard references src/PowerPlatform/Plugins)",
+          "source/webresources (the standard references src/PowerPlatform/WebResources)"
+        ],
+        "detail": "Missing from the expected layout: src/PowerPlatform/Plugins, src/PowerPlatform/CustomAPIs, src/PowerPlatform/WebResources, docs/adr",
+        "evidence": [
+          "source/plugins (the standard references src/PowerPlatform/Plugins)",
+          "source/webresources (the standard references src/PowerPlatform/WebResources)"
+        ],
+        "guidance": "Creating this layout next to a different existing one leaves two conventions in one repository. In an existing project, create only what is missing and only where it matches what is already there."
+      }
+    ],
+    "deviations": [
+      "plugins.targetFramework",
+      "plugins.sdkStyle",
+      "plugins.strongNaming",
+      "plugins.test.xunit",
+      "plugins.test.fakeXrmEasyPlugins",
+      "pcf.controlType",
+      "pcf.platformLibrary.react",
+      "pcf.platformLibrary.fluent",
+      "pcf.test",
+      "javascript.test",
+      "javascript.lint",
+      "webresources.buildProject",
+      "layout.folders"
+    ],
+    "staleBaseline": []
+  },
+  "prefixEvidence": [],
+  "proposedValues": {
+    "ProjectName": {
+      "value": "Contoso",
+      "source": "Shared root namespace of the existing C# projects (Contoso.Plugins), with the layer segment removed. The project name is also the root .NET namespace",
+      "confidence": "medium",
+      "alternatives": [
+        "contoso-legacy"
+      ]
+    },
+    "PublisherUniqueName": {
+      "value": "ContosoLtd",
+      "source": "solutions/ContosoCore/Other/Solution.xml (committed solution manifest)",
+      "confidence": "high",
+      "alternatives": [
+        "ContosoLtd"
+      ]
+    },
+    "PublisherPrefix": {
+      "value": "cnt",
+      "source": "solutions/ContosoCore/Other/Solution.xml (committed solution manifest)",
+      "confidence": "high",
+      "alternatives": [
+        "cnt"
+      ]
+    },
+    "CoreSolution": {
+      "value": "ContosoCore",
+      "source": "solutions/ContosoCore/Other/Solution.xml (committed solution manifest)",
+      "confidence": "high",
+      "alternatives": [
+        "ContosoCore"
+      ]
+    },
+    "ProjectDescription": {
+      "value": "Customer Service customisations for Contoso.",
+      "source": "First paragraph of README.md",
+      "confidence": "medium",
+      "alternatives": []
+    }
+  },
+  "recommendation": {
+    "mode": "adopt",
+    "scaffoldArguments": [
+      "-SkipExisting",
+      "-SkipLayout"
+    ],
+    "askUserFor": [],
+    "deviationCount": 13,
+    "warnings": [
+      "CLAUDE.md already exists. The scaffold will skip it with -SkipExisting: merge the harness sections into the existing file rather than overwriting instructions the project already relies on.",
+      "The harness is partially installed. Only the missing files will be written; compare the present ones against the templates before assuming they are current."
+    ]
+  },
+  "notes": []
+}

@@ -1,0 +1,5 @@
+{
+  "name": "acme-webresources",
+  "private": true,
+  "devDependencies": { "vitest": "3.2.4", "eslint": "10.0.0", "webpack": "5.90.0" }
+}

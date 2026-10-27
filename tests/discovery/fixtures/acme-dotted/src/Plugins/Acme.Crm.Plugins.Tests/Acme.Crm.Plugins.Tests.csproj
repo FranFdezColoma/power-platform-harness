@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="FakeXrmEasy.Plugins.v9" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Acme.Crm.Plugins\Acme.Crm.Plugins.csproj" />
+  </ItemGroup>
+</Project>

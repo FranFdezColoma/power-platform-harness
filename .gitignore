@@ -7,3 +7,10 @@
 templates/**/bin/
 templates/**/obj/
 templates/**/node_modules/
+
+# Discovery snapshots that include this machine and its connected environment.
+tests/discovery/.local/
+
+# Build output an IDE may restore inside the discovery fixtures: never fixture content.
+tests/**/bin/
+tests/**/obj/
