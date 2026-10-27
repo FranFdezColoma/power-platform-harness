@@ -64,6 +64,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 ## Testing
 
 - Production code and the tests it requires are created or updated in the same change.
+- Work test-first. Before any production code, a subagent writes the tests from the spec, the public surface the change exposes and the applicable standards file, so the tests encode the requirement rather than the implementation's assumptions. Run them and confirm each one fails for the reason the spec gives (*red*); then write the production code that makes them pass (*green*). A bug fix starts with a test that reproduces the bug. Without subagents, write the tests yourself, still before the production code.
 - Tests execute the production artifact. They never duplicate, reimplement or paraphrase the logic under test.
 - Test observable behaviour through the public surface, not implementation details.
 - Cover expected behaviour, the relevant edge cases, and the failure paths.
