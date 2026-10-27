@@ -4,16 +4,13 @@
     "classification": "existing",
     "fileCount": 12,
     "walkTruncated": false,
-    "prunedFolders": [
-      "source/plugins/Contoso.Plugins.Tests/bin",
-      "source/plugins/Contoso.Plugins.Tests/obj"
-    ],
+    "prunedFolders": [],
     "git": {
-      "isRepository": true,
-      "branch": "feature/v2-official-skills",
-      "commitCount": 42,
-      "remoteUrl": "https://github.com/FranFdezColoma/power-platform-harness.git",
-      "isDirty": true
+      "isRepository": false,
+      "branch": null,
+      "commitCount": null,
+      "remoteUrl": null,
+      "isDirty": null
     },
     "harness": {
       "installed": true,

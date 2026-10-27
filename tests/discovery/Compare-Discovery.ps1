@@ -80,9 +80,16 @@ $scratch = Join-Path ([System.IO.Path]::GetTempPath()) "pph-golden-$([guid]::New
 New-Item -ItemType Directory -Path $scratch -Force | Out-Null
 
 try {
+    # Fixtures are copied out first: inside this repository, git would report this repository's
+    # branch and commit count for them, which change with every commit.
     $fixtures = [ordered]@{}
     foreach ($folder in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'fixtures') -Directory) {
-        $fixtures[$folder.Name] = $folder.FullName
+        $copy = Join-Path $scratch $folder.Name
+        Copy-Item -LiteralPath $folder.FullName -Destination $copy -Recurse
+        Get-ChildItem -LiteralPath $copy -Recurse -Directory -Force |
+            Where-Object { $_.Name -in @('bin', 'obj') } |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        $fixtures[$folder.Name] = $copy
     }
 
     $empty = Join-Path $scratch 'empty'

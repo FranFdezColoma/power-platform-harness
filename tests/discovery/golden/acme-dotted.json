@@ -4,18 +4,13 @@
     "classification": "existing",
     "fileCount": 7,
     "walkTruncated": false,
-    "prunedFolders": [
-      "src/Plugins/Acme.Crm.Plugins.Tests/bin",
-      "src/Plugins/Acme.Crm.Plugins.Tests/obj",
-      "src/Plugins/Acme.Crm.Plugins/bin",
-      "src/Plugins/Acme.Crm.Plugins/obj"
-    ],
+    "prunedFolders": [],
     "git": {
-      "isRepository": true,
-      "branch": "feature/v2-official-skills",
-      "commitCount": 42,
-      "remoteUrl": "https://github.com/FranFdezColoma/power-platform-harness.git",
-      "isDirty": true
+      "isRepository": false,
+      "branch": null,
+      "commitCount": null,
+      "remoteUrl": null,
+      "isDirty": null
     },
     "harness": {
       "installed": false,
