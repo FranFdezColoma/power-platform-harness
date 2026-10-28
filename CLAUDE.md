@@ -15,11 +15,11 @@ design; read it before changing anything.
 | --- | --- |
 | `.claude-plugin/plugin.json` | Plugin manifest. Lists the skills explicitly |
 | `.claude-plugin/marketplace.json` | Makes this repo its own single-plugin marketplace |
-| `skills/set-power-platform/SKILL.md` | The skill users run: runs the other three in order and reports once |
+| `skills/set-power-platform/SKILL.md` | The skill users run: runs `setup-tools`, `connect`, `setup-project` and `connect` again, and reports once |
 | `skills/setup-tools/SKILL.md` | The machine: inspects tools, skills and plugins, proposes each install, update or removal |
-| `skills/setup-project/SKILL.md` | The repository: copies the templates, adapts them to an existing project |
+| `skills/setup-project/SKILL.md` | The repository: copies the templates, creates a new project's starting code, adapts them to an existing project |
 | `skills/setup-project/templates/` | Content shipped verbatim, tokens replaced, into every project |
-| `skills/connect/SKILL.md` | The connections `.power-platform/project.json` expects |
+| `skills/connect/SKILL.md` | The sign-ins, and the connections `.power-platform/project.json` expects |
 
 The skills are markdown only: no scripts. The agent running a skill does the inspection itself.
 Do not add a script unless something genuinely cannot be done otherwise, and do not add a

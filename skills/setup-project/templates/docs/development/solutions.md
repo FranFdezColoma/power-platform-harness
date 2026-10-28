@@ -8,7 +8,7 @@ Scope: everything that happens inside DEV — which solution a component goes in
 
 - DEV is shared: every change lands where colleagues are working. There are no per-developer environments.
 - DEV is the environment `.power-platform/project.json` names (`connections.dataverse.devUrl`). Name the environment before any operation against it (`pac org who --environment <devUrl>`). An environment you have not verified is production.
-- Write operations are permitted in DEV only, and only with a tool that can perform them: the official skills, `pac`, the Dataverse CLI or the Dataverse MCP server. Without one, prepare the operation and hand it to the developer.
+- Write operations are permitted in DEV only, and only with a tool that can perform them: the official skills, `pac`, the Dataverse CLI, the Dataverse MCP server or the Dataverse skills' Python SDK. Without one, prepare the operation and hand it to the developer.
 - Irreversible operations are prepared, not executed: deleting a table, column, relationship, record or solution; changing the data type of a populated column. A human runs them.
 - Never create or modify a component without a target solution. A component created outside one lands in the Default Solution, where nothing tracks it.
 

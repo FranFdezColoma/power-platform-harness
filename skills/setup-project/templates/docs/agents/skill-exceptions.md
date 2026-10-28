@@ -15,7 +15,7 @@ An entry whose quote no longer appears in the installed skill is **stale**: the 
 
 - **Overrides** Ponytail: "leaves one small test or an assert-based self-check"
 - **Rule:** The Testing section and the Definition of Done in `docs/agents/development-standards.md` decide which tests a change requires. Ponytail governs everything else.
-- **Scope:** Tests for plugins, Custom APIs, web resources and PCF controls.
+- **Scope:** Tests for plugins, Custom APIs, web resources and PCF controls, when Ponytail is installed: it is recommended, not required.
 - **Reason:** Code that rejects an operation or keeps data consistent needs its edge cases and failure paths covered, test-first. One test leaves them unproven.
 
 ## E4. Imports go to DEV only

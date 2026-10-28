@@ -77,7 +77,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 - Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Retrieve it with the official Dataverse skills (`dv-metadata`, `dv-query`, `dv-solution`); `dv-overview` states the same rule.
 - Name the environment before any operation against it (`pac org who --environment <devUrl>`, with the DEV url from `.power-platform/project.json`). Treat any environment you have not verified as production.
-- Write operations are permitted in DEV only, through the official skills, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
+- Write operations are permitted in DEV only, through the official skills, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human. This holds whatever the tool: `.claude/settings.json` denies the MCP server's delete tools, but nothing blocks a Python script, so a script that deletes is handed to the developer, not run.
 
 ## Blocked commands
 

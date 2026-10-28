@@ -42,10 +42,10 @@ Then, in the folder you want to set up:
 
 | Skill | What it does |
 | --- | --- |
-| `set-power-platform` | Runs the three below in order and reports once |
-| `setup-tools` | Checks the machine — PowerShell, git, .NET SDK, Node.js, `pac`, Python, `az`, `gh`, the Dataverse skills and the model-apps, power-automate and Ponytail plugins — and proposes each install, update or removal |
-| `setup-project` | Writes the harness files into the repository, or adopts it into an existing one |
-| `connect` | Checks `pac`, DEV, the tenant, the repository and the Dataverse MCP server against `.power-platform/project.json`, and hands anything missing to `dv-connect` |
+| `set-power-platform` | Runs `setup-tools`, `connect`, `setup-project` and `connect` again, and reports once |
+| `setup-tools` | Checks the machine — PowerShell, git, .NET SDK, Node.js, `pac`, Python, `az`, `gh`, `playwright-cli` and its skill, the Dataverse skills, the model-apps and power-automate plugins and, recommended, Ponytail — and proposes each install, update or removal |
+| `connect` | Signs you in, giving each command and verifying it: a `pac` profile for DEV, `az` in the tenant, the repository (`gh` for GitHub, `az` for Azure DevOps), the `playwright-cli` session; then checks the Dataverse MCP server — or, when the tenant restricts it, the `az` session the Dataverse skills' Python SDK takes its token from — and hands anything missing to `dv-connect` |
+| `setup-project` | Writes the harness files and the starting code into a new repository, adopts the harness into an existing one, or proposes what the templates changed in one that has it |
 
 Each one can be run on its own.
 
@@ -57,6 +57,9 @@ CLAUDE.md                                # @AGENTS.md
 .gitignore                               # .NET, PCF and secrets hygiene
 .claude/settings.json                    # denies irreversible operations, allows read-only checks
 .power-platform/project.json             # project identity and expected connections; no secrets
+solutions/README.md                      # exported solution source goes here
+scripts/README.md                        # the Dataverse skills' helper scripts go here
+src/PowerPlatform/                       # new project only: PowerPlatform.sln, <Project>.Common, WebResources
 docs/
 ├── agents/
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
@@ -72,9 +75,11 @@ docs/
     └── solutions.md                     # feature solution per branch, DEV rules
 ```
 
-No code is generated up front. The standards describe `src/PowerPlatform/PowerPlatform.sln`, the
-shared `<Project>.Common` library and the WebResources project, and the agent creates each one the
-first time a change needs it, pinning the latest stable versions at that moment.
+In a new project, `setup-project` also creates `src/PowerPlatform/PowerPlatform.sln`, the shared
+`<Project>.Common` library and the WebResources project from the standards, pinning the latest
+stable versions at that moment, and checks that they build and that the tests and lint pass. In an
+existing project nothing is generated: each one is created the first time a change needs it.
+Plugins, Custom APIs and PCF controls are always created with the change that needs them.
 
 ## How work starts afterwards
 

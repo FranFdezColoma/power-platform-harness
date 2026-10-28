@@ -1,5 +1,4 @@
 {
-  "harnessVersion": "2.0.0",
   "identity": {
     "projectName": "{{project_name}}",
     "publisherUniqueName": "{{publisher_unique_name}}",
@@ -8,8 +7,7 @@
   },
   "connections": {
     "dataverse": { "devUrl": null, "tenantId": null },
-    "repository": { "provider": "{{repository_provider}}", "url": null },
-    "azure": { "subscriptionId": null },
+    "repository": { "provider": "{{repository_provider}}", "url": null, "tenantId": null },
     "playwright": { "session": "{{project_name}}" }
   }
 }

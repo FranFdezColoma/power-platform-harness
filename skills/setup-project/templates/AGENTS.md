@@ -15,4 +15,4 @@ Microsoft's Dataverse and Power Platform skills supply the capabilities (connect
 
 ## Tool usage
 
-When a task depends on a fact you could check, check it instead of recalling it: skills for specialized domain knowledge, MCP servers for inspection/operations, `pac` (Power Platform CLI) for platform lifecycle operations, `{{repository_cli}}` for repository operations, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.
+When a task depends on a fact you could check, check it instead of recalling it: skills for specialized domain knowledge, MCP servers for inspection/operations (when the tenant restricts the Dataverse MCP server, the Dataverse skills' Python SDK), `pac` (Power Platform CLI) for platform lifecycle operations, `{{repository_cli}}` for repository operations, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.
