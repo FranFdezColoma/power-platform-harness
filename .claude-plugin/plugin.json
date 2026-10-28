@@ -22,6 +22,7 @@
     "discovery"
   ],
   "skills": [
-    "./skills/set-power-platform"
+    "./skills/set-power-platform",
+    "./skills/setup-tools"
   ]
 }

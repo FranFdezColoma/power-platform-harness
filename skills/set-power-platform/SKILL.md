@@ -71,7 +71,7 @@ None of these stops the skill: the harness only writes files. Every requirement 
 **Recommended tools.** Two are recommended, never required:
 
 - **Dataverse MCP server** — check your own available tools for a Dataverse MCP server; this script cannot see what is registered with you. If no server is available, recommend running the `dv-connect` skill, which registers it.
-- **Playwright** — `toolchain.recommended.playwrightCli.installed`, or a Playwright MCP server among your own tools. If neither, recommend `playwright-cli` with its `install` command.
+- **Playwright** — the `toolchain.recommended` entry `recommended.playwright-cli` (`installed`), or a Playwright MCP server among your own tools. If neither, recommend `playwright-cli` with its `install` command.
 
 ## 3. Connect `pac` to DEV
 

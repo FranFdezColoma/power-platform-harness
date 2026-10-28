@@ -19,8 +19,9 @@ describe 1.x as it still stands.
 | `.claude-plugin/plugin.json` | Plugin manifest. Lists the skills explicitly |
 | `.claude-plugin/marketplace.json` | Makes this repo its own single-plugin marketplace |
 | `skills/set-power-platform/SKILL.md` | The skill users run: discovers, collects what discovery could not, runs the scaffold, reports |
-| `skills/setup-tools/scripts/check-tools.ps1` | Read-only check of the machine's tools. Emits JSON. Writes nothing |
-| `skills/setup-tools/scripts/catalog.json` | The tools a machine needs, with minimum and preferred versions and where each is stated |
+| `skills/setup-tools/SKILL.md` | Checks the machine, proposes each install, update or removal, and runs the ones the user approves |
+| `skills/setup-tools/scripts/check-tools.ps1` | Read-only check of the machine: tools, pac installs, agents, official skills and plugins, telemetry. Emits JSON with the `proposals` the skill offers. Writes nothing |
+| `skills/setup-tools/scripts/catalog.json` | The tools a machine needs, with minimum and preferred versions and where each minimum comes from; the per-repository tools; the official skills and plugins; the agents that install plugins |
 | `skills/setup-tools/scripts/skill-exceptions.json` | The official skill rules the harness overrides, quoted verbatim. `check-tools.ps1` reports a quote no installed copy contains any more |
 | `skills/connect/scripts/check-connections.ps1` | Read-only check of the pac profile and the DEV environment. Emits JSON. Writes nothing |
 | `skills/setup-project/scripts/discover.ps1` | Read-only inspection of a repository and, through pac, the environment's publishers and solutions. Emits JSON. Writes nothing |
@@ -30,7 +31,7 @@ describe 1.x as it still stands.
 | `skills/setup-project/templates/` | Content shipped verbatim into every scaffolded project |
 | `skills/setup-project/templates/scripts/new-feature.ps1` | Shipped to every project: derives the branch and feature solution names, checks them against git and DEV, and creates the branch. It only reads Dataverse; `dv-solution` creates the solution |
 | `skills/setup-project/templates/.claude/settings.json` | Shipped to every project: permission rules that enforce the irreversible-operation rules in the standards |
-| `tests/` | Checks over this repository: `Test-Repository.ps1` (static invariants), `discovery/` (golden output of the discovery scripts over fixture repositories) and `unit/` (Pester tests of the scaffold's validation and of `new-feature.ps1`) |
+| `tests/` | Checks over this repository: `Test-Repository.ps1` (static invariants), `discovery/` (golden output of the discovery scripts over fixture repositories) and `unit/` (Pester tests of the scaffold's validation, of `new-feature.ps1` and of `check-tools.ps1`'s assessment) |
 
 The split matters: the check and discovery scripts never write, `scaffold.ps1` never asks, and the
 skills never generate content that belongs in a template. A change that blurs one of those is the
