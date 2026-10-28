@@ -9,14 +9,16 @@
     {
       "name": "power-platform-harness",
       "source": "./",
-      "description": "Installs a Power Platform / Dynamics 365 CE development harness with skills written in natural language: prepares the machine and proposes installs and updates, writes agent instructions, per-technology development standards and the per-branch feature solution workflow into the repository, and checks the connections to DEV. Scaffolds a new repository, or adopts an existing one by reading its publisher, prefix, core solution and stack, and adapting the standards to the versions it already uses.",
+      "description": "Installs a Power Platform / Dynamics 365 CE development harness with skills written in natural language: prepares the machine and proposes installs and updates, writes agent instructions, per-technology development standards and the per-branch feature solution workflow into the repository, and checks the connections to DEV. Scaffolds a new repository, or adopts an existing one by reading its publisher, prefix, core solution and stack, and adapting the standards to the versions it already uses. Delivery is spec-first with OpenSpec: functional and technical gates, project context and solutioning standards.",
       "category": "engineering",
       "keywords": [
         "power-platform",
         "dynamics-365",
         "dataverse",
         "alm",
-        "scaffolding"
+        "scaffolding",
+        "openspec",
+        "spec-driven"
       ]
     }
   ]

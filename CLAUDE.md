@@ -6,7 +6,7 @@ skills live under `skills/`, and the templates they write under `skills/setup-pr
 It is not a Power Platform project: nothing here is deployed to Dataverse. The standards in
 `skills/setup-project/templates/docs/` govern the projects this plugin creates, not this repository.
 
-**2.0 is in progress** on `feature/onlySkills`. `docs/design/2.0-architecture.md` holds the agreed
+**2.0 is in progress** on `feature/onlySkills`; the OpenSpec merge (2.3.0) on `feature/mergeWithNacho`. `docs/design/2.0-architecture.md` holds the agreed
 design; read it before changing anything.
 
 ## Layout
@@ -17,7 +17,7 @@ design; read it before changing anything.
 | `.claude-plugin/marketplace.json` | Makes this repo its own single-plugin marketplace |
 | `skills/set-power-platform/SKILL.md` | The skill users run: runs `setup-tools`, `connect`, `setup-project` and `connect` again, and reports once |
 | `skills/setup-tools/SKILL.md` | The machine: inspects tools, skills and plugins, proposes each install, update or removal |
-| `skills/setup-project/SKILL.md` | The repository: copies the templates, creates a new project's starting code, adapts them to an existing project |
+| `skills/setup-project/SKILL.md` | The repository: copies the templates, runs `openspec init`, creates a new project's starting code, adapts them to an existing project |
 | `skills/setup-project/scripts/new-folders.ps1` | Creates the folder tree of a new project: `Plugins`, `CustomAPIs`, the WebResources `<prefix>_/src/...` folders, `docs/adr` |
 | `skills/setup-project/templates/` | Content shipped verbatim, tokens replaced, into every project |
 | `skills/connect/SKILL.md` | The sign-ins, and the connections `.power-platform/project.json` expects |
@@ -38,7 +38,10 @@ self-contained: it reaches only its own folder, so it still works installed on i
   and note it in the commit.
 - `skills/setup-project/templates/docs/agents/development-standards.md` owns the standards index.
   Adding a file under `docs/development/` without adding its row to that index leaves the file
-  unreachable.
+  unreachable. The same holds for `docs/solutioning/` and the index in `solutioning-standards.md`;
+  `AGENTS.md` routes each OpenSpec step to those gate files.
+- What `openspec init` generates is not a template: never copy OpenSpec skills or commands into
+  `templates/`.
 - Keep the template free of anything project-specific or client-specific. This repository is
   public: no environment urls, tenant ids, client names, solution names or real prefixes.
 - No hand-written versions. A pin a project needs is described, and resolved when the project
