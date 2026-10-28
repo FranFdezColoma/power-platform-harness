@@ -690,10 +690,6 @@ if ($baseline) {
             }
         }
 
-        # Machine requirements describe the developer's machine, not the repository: they are
-        # reported under toolchain below, never as a deviation of the project.
-        if ($assertion.kind -eq 'machine') { continue }
-
         switch ($assertion.id) {
 
             'plugins.targetFramework' {

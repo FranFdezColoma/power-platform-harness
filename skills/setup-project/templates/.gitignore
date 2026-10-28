@@ -32,21 +32,35 @@ generated/
 *.tsbuildinfo
 coverage/
 
-# Playwright (recommended browser tooling)
+# Playwright (recommended browser tooling). The browser profile lives outside the repository;
+# only the shared playwright-cli configuration is committed.
 test-results/
 playwright-report/
 blob-report/
-.playwright/
+.playwright/*
+!.playwright/cli.config.json
 .playwright-cli/
 
-# Secrets and environment configuration: never committed
+# Secrets and environment configuration: never committed. dv-connect writes .env and the token
+# cache; scripts/auth.py and scripts/enable-mcp-client.py are committed.
 .env
 *.env
+.token_cache.bin
+.dataverse/
+.claude/mcp_settings.json
 secrets.json
 appsettings.*.local.json
 *.pfx
 *.snk
 *.publishsettings
+
+# Python (the Dataverse skills' scripts)
+__pycache__/
+*.pyc
+.venv/
+
+# Solution zips: the unpacked source under solutions/ is what is committed
+solutions/*.zip
 
 # Local agent and tooling state
 .claude/settings.local.json

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "description": "The official skill rules the harness deliberately overrides, each with the verbatim quote of the rule. check-tools.ps1 reports whether every installed copy of each skill still contains its quote: a quote no copy contains means the official rule changed and the exception is stale. documentedIn is relative to the setup-project skill: tests/Test-Repository.ps1 fails when that file no longer quotes the same text.",
+  "maintenance": "Changing an exception in skills/setup-project/templates/docs/agents/skill-exceptions.md means updating the matching entry here in the same commit.",
+  "exceptions": [
+    {
+      "id": "E1",
+      "skill": "dv-overview",
+      "source": "microsoft/Dataverse-skills",
+      "quote": "Python is the language for automation **logic**",
+      "documentedIn": "templates/docs/agents/skill-exceptions.md"
+    },
+    {
+      "id": "E2",
+      "skill": "dv-connect",
+      "source": "microsoft/Dataverse-skills",
+      "quote": "mkdir -p solutions plugins scripts",
+      "documentedIn": "templates/docs/agents/skill-exceptions.md"
+    },
+    {
+      "id": "E3",
+      "skill": "ponytail",
+      "source": "DietrichGebert/ponytail",
+      "quote": "leaves one small test or an assert-based self-check",
+      "documentedIn": "templates/docs/agents/skill-exceptions.md"
+    },
+    {
+      "id": "E4",
+      "skill": "dv-solution",
+      "source": "microsoft/Dataverse-skills",
+      "quote": "## Push: Pack + Import",
+      "documentedIn": "templates/docs/agents/skill-exceptions.md"
+    }
+  ]
+}

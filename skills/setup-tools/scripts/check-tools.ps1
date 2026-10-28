@@ -88,11 +88,66 @@ function Get-DotnetSdkReport {
     return $Report
 }
 
+function Get-SkillExceptionReport {
+    param($Exceptions)
+
+    # Where each agent keeps the skills it installed: npx skills (shared by every Agent Skills
+    # agent), then the plugin folders of Claude Code, Copilot CLI and Codex. Marketplace folders
+    # hold the catalogues plugins are installed from, not installed skills, so they are skipped.
+    $roots = @(
+        (Join-Path $HOME '.agents/skills')
+        (Join-Path $HOME '.claude/plugins')
+        (Join-Path $HOME '.copilot/installed-plugins')
+        (Join-Path $HOME '.codex/plugins')
+        (Join-Path $HOME '.codex/skills')
+    )
+    $skillNames = @($Exceptions | ForEach-Object { $_.skill } | Select-Object -Unique)
+
+    $copies = @{}
+    foreach ($name in $skillNames) { $copies[$name] = New-Object System.Collections.Generic.List[string] }
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        $folders = @(Get-ChildItem -LiteralPath $root -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notin @('marketplaces', 'marketplace-cache') })
+        foreach ($folder in $folders) {
+            foreach ($file in @(Get-ChildItem -LiteralPath $folder.FullName -Recurse -Depth 6 -File -Filter 'SKILL.md' -Force -ErrorAction SilentlyContinue)) {
+                $skill = Split-Path -Leaf (Split-Path -Parent $file.FullName)
+                if ($copies.ContainsKey($skill)) { $copies[$skill].Add($file.FullName) }
+            }
+        }
+    }
+
+    foreach ($exception in $Exceptions) {
+        $checked = @(foreach ($path in $copies[$exception.skill]) {
+            $text = [System.IO.File]::ReadAllText($path)
+            [ordered]@{ path = $path; containsQuote = $text.Contains($exception.quote) }
+        })
+        $quoting = @($checked | Where-Object { $_.containsQuote }).Count
+
+        # stale: no copy has the rule any more, so the exception overrides something that changed.
+        # mixed: copies of different versions disagree; the old ones are duplicates to remove.
+        $status = 'ok'
+        if ($checked.Count -eq 0) { $status = 'not-installed' }
+        elseif ($quoting -eq 0) { $status = 'stale' }
+        elseif ($quoting -lt $checked.Count) { $status = 'mixed' }
+
+        [ordered]@{
+            id     = $exception.id
+            skill  = $exception.skill
+            source = $exception.source
+            quote  = $exception.quote
+            status = $status
+            copies = $checked
+        }
+    }
+}
+
 # --------------------------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------------------------
 
 $catalogPath = Join-Path $PSScriptRoot 'catalog.json'
+$exceptionsPath = Join-Path $PSScriptRoot 'skill-exceptions.json'
 $notes = New-Object System.Collections.Generic.List[string]
 
 try {
@@ -108,6 +163,8 @@ $versionProbes = @(
     @{ Key = 'node'; Name = 'node'; Arguments = @('--version') }
     @{ Key = 'npm'; Name = 'npm'; Arguments = @('--version') }
     @{ Key = 'gh'; Name = 'gh'; Arguments = @('--version') }
+    @{ Key = 'python'; Name = 'python'; Arguments = @('--version') }
+    @{ Key = 'az'; Name = 'az'; Arguments = @('--version') }
     @{ Key = 'playwrightCli'; Name = 'playwright-cli'; Arguments = @('--version') }
 )
 
@@ -233,17 +290,29 @@ if ($baseline) {
     }
 }
 
+# ---- skill exceptions ------------------------------------------------------------------------
+
+$skillExceptions = @()
+if (Test-Path -LiteralPath $exceptionsPath) {
+    try { $skillExceptions = @(Get-SkillExceptionReport -Exceptions ([System.IO.File]::ReadAllText($exceptionsPath) | ConvertFrom-Json).exceptions) }
+    catch { $notes.Add("skill-exceptions.json could not be read: $($_.Exception.Message)") | Out-Null }
+}
+else {
+    $notes.Add("skill-exceptions.json was not found at $exceptionsPath; no exception was checked.") | Out-Null
+}
+
 # ---- output --------------------------------------------------------------------------------
 
 $report = [ordered]@{
-    schemaVersion = 1
-    generatedAt   = (Get-Date).ToString('o')
-    tooling       = $tooling
-    toolchain     = [ordered]@{
+    schemaVersion   = 1
+    generatedAt     = (Get-Date).ToString('o')
+    tooling         = $tooling
+    toolchain       = [ordered]@{
         requirements = $requirements
         recommended  = $recommendedTools
     }
-    notes         = @($notes)
+    skillExceptions = $skillExceptions
+    notes           = @($notes)
 }
 
 $report | ConvertTo-Json -Depth 12

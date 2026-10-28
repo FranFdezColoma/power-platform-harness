@@ -11,7 +11,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - A technology file may make a rule here more specific. If it contradicts one, this file wins and you report the contradiction.
 - If the change touches a technology with no standards file, apply this file alone and state that gap explicitly in the final report.
 - Project identity: project `{{project_name}}`, publisher `{{publisher_unique_name}}` with customization prefix `{{publisher_prefix}}`, core solution `{{core_solution}}` in DEV (`none` when the project has none). The project name is also the root .NET namespace.
-- Only when a tool a task needs is missing or fails, read `docs/agents/toolchain.md` for what to install. Never assume a tool is present or absent: check when the task needs it.
+- Only when a tool a task needs is missing or fails, read `docs/agents/toolchain.md` for what the machine needs; the harness's `setup-tools` skill installs it. Never assume a tool is present or absent: check when the task needs it.
 
 ## Design principles
 
@@ -74,9 +74,9 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 ## Working against Dataverse
 
-- Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Use the Dataverse MCP server or `pac`.
-- Name the environment before any operation against it (`pac org who`). Treat any environment you have not verified as production.
-- Write operations are permitted in DEV only, with `pac` or the Dataverse MCP server, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
+- Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Retrieve it with the official Dataverse skills (`dv-metadata`, `dv-query`, `dv-solution`); `dv-overview` states the same rule.
+- Name the environment before any operation against it (`pac org who --environment <devUrl>`, with the DEV url from `.power-platform/project.json`). Treat any environment you have not verified as production.
+- Write operations are permitted in DEV only, through the official skills, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human.
 
 ## Blocked commands
 

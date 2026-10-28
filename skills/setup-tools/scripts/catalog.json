@@ -43,7 +43,7 @@
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| .NET SDK | 8 | 10 |",
       "install": "winget install --id Microsoft.DotNet.SDK.10 --source winget",
-      "guidance": "Builds and tests plugins and Custom APIs, and installs pac. The SDK on the machine is independent of the framework the plugins target."
+      "guidance": "Builds and tests plugins and Custom APIs. The SDK on the machine is independent of the framework the plugins target. The minimum is harness policy: a stable, non-obsolete release."
     },
     {
       "id": "machine.node",
@@ -57,7 +57,7 @@
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| Node.js | 22.13 | 24 |",
       "install": "winget install --id OpenJS.NodeJS.LTS --source winget",
-      "guidance": "Tests and lints web resources and PCF controls. The pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
+      "guidance": "Tests and lints web resources and PCF controls, and runs the official skills' hooks and MCP servers. The minimum is harness policy: the pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
     },
     {
       "id": "machine.pac",
@@ -65,13 +65,41 @@
       "topic": "Power Platform CLI (pac)",
       "tool": "pac",
       "tier": "required",
+      "minimum": "2.10.0",
+      "preferred": null,
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| Power Platform CLI (`pac`), the Windows installer | above 2.10.0 | latest |",
+      "install": "winget install --id Microsoft.PowerAppsCLI --source winget",
+      "guidance": "Generates PCF projects and early-bound classes, and reads the environment. The minimum is documented by model-apps (\"Requires PAC CLI > 2.10.0\"). Install the Windows installer, not the .NET global tool: it keeps older versions side by side and updates with pac install latest. It also needs an authentication profile that reaches DEV, which dv-connect creates."
+    },
+    {
+      "id": "machine.python",
+      "kind": "machine",
+      "topic": "Python",
+      "tool": "python",
+      "tier": "required",
       "minimum": null,
       "preferred": null,
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
-      "assertedText": "| Power Platform CLI (`pac`) | any | latest |",
-      "install": "dotnet tool install --global Microsoft.PowerApps.CLI.Tool",
-      "guidance": "Generates PCF and plugin projects and early-bound classes, creates feature solutions and reads the environment. It also needs an authentication profile against DEV."
+      "assertedText": "| Python | any | latest |",
+      "install": null,
+      "guidance": "Runs the Dataverse skills' scripts (scripts/auth.py) and SDK. dv-connect installs it and its packages; this check only reports it."
+    },
+    {
+      "id": "machine.az",
+      "kind": "machine",
+      "topic": "Azure CLI (az)",
+      "tool": "az",
+      "tier": "required",
+      "minimum": null,
+      "preferred": null,
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| Azure CLI (`az`) | any | latest |",
+      "install": "winget install --id Microsoft.AzureCLI --source winget",
+      "guidance": "Required by the model-apps and power-automate skills."
     }
   ]
 }

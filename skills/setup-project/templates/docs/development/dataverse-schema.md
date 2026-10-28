@@ -7,7 +7,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Do not create a custom table when a standard table already models the concept.
 - Extend the standard table with custom columns first. A custom clone loses the out-of-the-box engine attached to the standard table — scheduling, SLA, entitlement, routing — and that engine is usually the reason the platform was chosen.
 - Every new table requires an ADR in `docs/adr/` naming the standard table that was considered and why it does not fit.
-- Inspect the real metadata before deciding (`describe` via the Dataverse MCP, or `pac`). Never assume a standard table does or does not already have the column you need.
+- Inspect the real metadata with `dv-metadata` before deciding. Never assume a standard table does or does not already have the column you need.
 
 ## Naming
 
@@ -43,5 +43,5 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## After the change
 
 - Create every table, column and relationship in the solution `docs/development/solutions.md` names for the current branch.
-- Read the metadata back from the environment and confirm it matches the intent. Never assert from memory what the platform accepted.
+- Read the metadata back from the environment with `dv-metadata` and confirm it matches the intent. Never assert from memory what the platform accepted.
 - Deleting or retyping a column, deleting a table or a relationship: prepare the operation and hand it over. A human executes it.
