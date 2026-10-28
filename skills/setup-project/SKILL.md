@@ -1,7 +1,7 @@
 ---
 name: setup-project
-description: Install the Power Platform / Dynamics 365 CE harness files in a repository — AGENTS.md, CLAUDE.md, .power-platform/project.json, permission rules, the development standards per technology and the per-branch feature solution workflow — and, in an empty folder, the starting code: PowerPlatform.sln, the shared Common library and the WebResources project. Works on an empty folder; on a project that already has the harness, where it proposes what the templates changed since; and on an existing project, where it reads the publisher, prefix, core solution and stack from the repository and the environment instead of asking, and adapts the standards to the versions the project already uses. Use when set-power-platform reaches its project step, to adopt the harness into a repository, or to bring a project's harness files up to date.
-allowed-tools: Bash(git init *), Bash(git status*), Bash(git remote *), Bash(git log *), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Bash(pac auth list*), Bash(pac org who *), Bash(pac solution list *), Bash(pac org fetch *), Bash(dotnet --list-sdks), Bash(dotnet build *), Bash(npm test*), Bash(powershell -NoProfile -File *new-folders.ps1 *), Bash(npm run lint*), PowerShell(git init *), PowerShell(git status*), PowerShell(git remote *), PowerShell(git log *), PowerShell(git switch -c *), PowerShell(git add *), PowerShell(git commit *), PowerShell(git diff*), PowerShell(pac auth list*), PowerShell(pac org who *), PowerShell(pac solution list *), PowerShell(pac org fetch *), PowerShell(dotnet --list-sdks), PowerShell(dotnet build *), PowerShell(npm test*), PowerShell(npm run lint*), PowerShell(*new-folders.ps1 *), Read, Write, Edit, Glob, Grep, AskUserQuestion
+description: Install the Power Platform / Dynamics 365 CE harness files in a repository — AGENTS.md, CLAUDE.md, README.md, .power-platform/project.json, permission rules, the spec-driven OpenSpec workflow with its functional and technical gates, the project context and solutioning standards, the development standards per technology and the per-branch feature solution workflow — and, in an empty folder, the starting code: PowerPlatform.sln, the shared Common library and the WebResources project. Works on an empty folder; on a project that already has the harness, where it proposes what the templates changed since; and on an existing project, where it reads the publisher, prefix, core solution and stack from the repository and the environment instead of asking, and adapts the standards to the versions the project already uses. Use when set-power-platform reaches its project step, to adopt the harness into a repository, or to bring a project's harness files up to date.
+allowed-tools: Bash(git init *), Bash(git status*), Bash(git remote *), Bash(git log *), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Bash(openspec *), Bash(pac auth list*), Bash(pac org who *), Bash(pac solution list *), Bash(pac org fetch *), Bash(dotnet --list-sdks), Bash(dotnet build *), Bash(npm test*), Bash(powershell -NoProfile -File *new-folders.ps1 *), Bash(npm run lint*), PowerShell(git init *), PowerShell(git status*), PowerShell(git remote *), PowerShell(git log *), PowerShell(git switch -c *), PowerShell(git add *), PowerShell(git commit *), PowerShell(git diff*), PowerShell(openspec *), PowerShell(pac auth list*), PowerShell(pac org who *), PowerShell(pac solution list *), PowerShell(pac org fetch *), PowerShell(dotnet --list-sdks), PowerShell(dotnet build *), PowerShell(npm test*), PowerShell(npm run lint*), PowerShell(*new-folders.ps1 *), Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Set up the project
@@ -28,6 +28,7 @@ Never invent a value. Never derive one silently from the folder name. A wrong pu
 Read the folder before asking anything; write nothing.
 
 - **Mode.** Empty (nothing but `.git`, a README or a licence), existing project, or harness already present (`.power-platform/project.json`, `docs/agents/development-standards.md`).
+- **OpenSpec.** Whether `openspec/config.yaml` exists, and whether `openspec --version` answers.
 - **Identity evidence.** A committed `Other/Solution.xml` gives the solution unique name, the publisher unique name and its customization prefix. The `.csproj` files' `RootNamespace` gives the project name; a dotted root namespace (`Acme.Crm`) is worth noting. Web resource names and folders (`<prefix>_/...`) hint at the prefix. The README may describe the project. `git remote get-url origin` gives the provider.
 - **Environment, when `pac` reaches one.** The DEV url is the one `connect` resolved, or `connections.dataverse.devUrl`. `pac solution list --environment <url>` lists the unmanaged solutions; the publishers come from `pac org fetch` over the `publisher` table (unique name, prefix, whether it is a default publisher). Branch solutions named `feature_*`, `fix_*` or `chore_*` are not the core solution. Skip this when `pac` is not connected (`connect` has not run, or its Dataverse sign-in is pending); the values are asked instead.
 - **Stack, for an existing project.** For each decision the standards in `templates/docs/development/` assert — plugin target framework and strong naming, test framework, the web resources' lint and test tooling, PCF platform libraries, the folder layout — note what the project uses, with the file that shows it.
@@ -41,10 +42,11 @@ Read the folder before asking anything; write nothing.
 | Publisher prefix | `{{publisher_prefix}}` | Customization prefix, carried by every component | 2 to 8 lowercase letters and digits, starts with a letter, not `mscrm`. **Permanent**: say so before accepting it |
 | Core solution | `{{core_solution}}` | Unique name of the core unmanaged solution in DEV, or `none` | Letters, digits and underscores, no publisher prefix. Optional: `none` when the project has none |
 | Description | `{{project_description}}` | One or two sentences on what the project delivers | Free text |
+| Artifact language | `{{artifact_language}}` | The language OpenSpec artifacts (proposal, specs, design, tasks) are written in; everything else stays English | A closed choice: Spanish, English, French, German, or another the user names. Default: the conversation's language |
 | Repository provider | `{{repository_provider}}` | Where the repository is hosted | `github` or `azure-devops`. Propose it from the remote and confirm it; with no remote, ask |
 | — | `{{repository_cli}}` | Derived, never asked | `gh` for `github`, `az repos` for `azure-devops` |
 
-Show the values as a table with value, source and confidence — **read** (from a committed `Solution.xml` or the environment), **inferred** (a namespace, file names, a README; show the evidence) or **missing** — then ask in one message for what is missing or doubtful. Values the user or `connect` passed to this skill are proposals: echo them back for confirmation. When the harness is already present, the values are `identity` in `.power-platform/project.json`: read them, do not ask again.
+Show the values as a table with value, source and confidence — **read** (from a committed `Solution.xml` or the environment), **inferred** (a namespace, file names, a README; show the evidence) or **missing** — then ask in one message for what is missing or doubtful. Values the user or `connect` passed to this skill are proposals: echo them back for confirmation. When the harness is already present, the values are `identity` in `.power-platform/project.json`: read them, do not ask again. The artifact language is then read from `openspec/config.yaml`.
 
 - **Publisher.** Prefer the core solution's publisher, then the only custom publisher in the environment. With several candidates, let the user choose. A prefix that matches no publisher is either mistyped or a publisher not created yet: show the existing ones and ask. A default publisher's prefix deserves a warning: projects should own their publisher.
 - **Core solution.** Most projects have one; check the proposed name against the environment's list when you have it.
@@ -61,7 +63,17 @@ When the project already has its own folder layout, do not create the harness's 
 
 List what you will write: each file under `templates/`, at the same relative path in the current folder. For an existing project, mark each file that already exists as **kept**: it is not overwritten. Overwrite a file only when the user explicitly accepts overwriting that exact file. `solutions/README.md` and `scripts/README.md` are written for an empty folder only; with `src/PowerPlatform/` from step 6 they lay the workspace out before `dv-connect` runs, so it does not create a root `plugins/` folder, and git keeps the folders because they are not empty.
 
-Ask for the go-ahead **once**, with the resolved values, the file list and, for an empty folder, the starting code of step 6. Then, for each file:
+Ask for the go-ahead **once**, with the resolved values, the file list, the OpenSpec step below and, for an empty folder, the starting code of step 6.
+
+### OpenSpec
+
+Before writing the templates:
+
+- **No `openspec/` yet** — run `openspec init --tools claude,github-copilot,codex --no-copilot-cloud --no-animation .` in the current folder. It writes `openspec/` and the `/opsx` skills and commands for Claude Code (`.claude/`), GitHub Copilot (`.github/`) and Codex (`.agents/`), with the `core` profile; never change the profile. The template's `openspec/config.yaml` then replaces the one `init` wrote: it is the one file of this skill that overwrites without asking, because `init` created it a moment ago.
+- **`openspec/` already exists** — never run `init` over it. Propose `openspec update`, which regenerates the skills and commands for the installed CLI. `openspec/config.yaml` is kept; show as a diff the template's `context` lines it lacks (the index and the artifact language) and add them only when the user accepts.
+- **The CLI is missing** (the user declined it in `setup-tools`) — write the templates anyway, `openspec/config.yaml` included, and report `openspec init` as pending, with `setup-tools` to install the CLI.
+
+Then, for each file:
 
 1. Read the template.
 2. Replace every token with its value, and change nothing else: not the wording, not the formatting, not the line endings.
@@ -76,6 +88,10 @@ Then, in the written `.power-platform/project.json`, set the `connections` value
 Every file the project lacks is written as above. For each file it has, compare it with its template, tokens replaced with the values from `project.json`, and leave out what is the project's on purpose:
 
 - `.power-platform/project.json`: never compared; it holds the project's data.
+- `docs/context/project.md` and `docs/context/glossary.md`: never compared; the team keeps them current.
+- `README.md`: only the "Approving a change" section is compared.
+- `openspec/config.yaml`: only the `context` lines the template has are compared.
+- What `openspec init` generated (`.claude/skills/openspec-*`, `.claude/commands/opsx/`, `.github/skills/openspec-*`, `.github/prompts/opsx-*`, `.agents/skills/openspec-*`): never compared; `openspec update` refreshes it (step 4, "OpenSpec").
 - The project's own content in `AGENTS.md` and `CLAUDE.md` (the description, the sections the template does not have): only the template's sections are compared.
 - A reconciled line — a stated version, framework or path, followed by `Harness recommends …` (step 5) — is the project's choice, not a difference; so is a dotted root namespace substituted in step 5.
 - `.claude/settings.json`: only the template's rules the file lacks, merged as below.
@@ -86,8 +102,12 @@ What remains is what the templates changed since the file was written. Show each
 
 The project's own instruction files may not point the agent at `docs/agents/development-standards.md` yet, and then the harness is unreachable. Fix it without moving existing content:
 
-- **`AGENTS.md` existed** — add the sections of the template's `AGENTS.md` it lacks, tokens replaced, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Keep the project's own content where it is.
+- **`AGENTS.md` existed** — add the sections of the template's `AGENTS.md` it lacks, tokens replaced, starting with the index: the knowledge library, what each step reads, the branch and feature solution, and the gates. Keep the project's own content where it is.
 - **Only `CLAUDE.md` existed** — `AGENTS.md` was written new. Add one line, `@AGENTS.md`, to the existing `CLAUDE.md`, and nothing else.
+
+### When `README.md` was kept
+
+Add the template's "Approving a change" section at the end of the existing README, tokens replaced, and nothing else. The project's own content stays where it is.
 
 ### When `.claude/settings.json` was kept
 
@@ -131,10 +151,12 @@ Creating a publisher or a solution is irreversible. Never do it on the user's be
 
 ## 8. Report
 
-State what was written, what was kept, what was reconciled, the template changes applied or declined, the folders the script created, the code created with the versions pinned and whether it builds, and what you could not check and why. Then, as a list the user can act on:
+State what was written, what was kept, what was reconciled, the template changes applied or declined, the folders the script created, what `openspec init` or `openspec update` did (or that it is pending), the code created with the versions pinned and whether it builds, and what you could not check and why. Then, as a list the user can act on:
 
 1. **Publisher** — if it does not exist in DEV yet, a human creates it with unique name and prefix as resolved.
 2. **Core solution** — if it is not `none` and does not exist in DEV yet, a human creates it under that publisher.
 3. **Recommended upgrades** — for an existing project, the differences reconciled in step 5, as the team's upgrade backlog.
 4. **Workspace trust** — the rules in `.claude/settings.json` that allow the agent's work apply only after each developer accepts Claude Code's trust prompt for the repository; until then every command asks.
-5. Read `docs/agents/development-standards.md` before the first change.
+5. **Project context** — `docs/context/project.md` has the client, scope and constraints as TBD: the team fills them in, or the first `/opsx:explore`.
+6. **Restart the agent** — the `/opsx` commands load on the next start.
+7. Work starts with `/opsx:propose`; a quick fix outside OpenSpec reads `docs/agents/development-standards.md` before the first change.

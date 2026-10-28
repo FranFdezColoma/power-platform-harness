@@ -1,6 +1,6 @@
 ---
 name: set-power-platform
-description: "Install the Power Platform / Dynamics 365 CE harness in this folder, end to end: prepare the machine (setup-tools), sign in to DEV, the tenant and the repository (connect), and write the agent instructions, development standards, per-branch feature solution workflow and, for a new project, the starting code into the repository (setup-project). Works on an empty folder and on an existing project, where it adapts the standards to the versions the project already uses."
+description: "Install the Power Platform / Dynamics 365 CE harness in this folder, end to end: prepare the machine (setup-tools), sign in to DEV, the tenant and the repository (connect), and write the agent instructions, the spec-driven OpenSpec workflow, development standards, per-branch feature solution workflow and, for a new project, the starting code into the repository (setup-project). Works on an empty folder and on an existing project, where it adapts the standards to the versions the project already uses."
 disable-model-invocation: true
 allowed-tools: Bash, PowerShell, Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
@@ -37,4 +37,4 @@ Run `setup-tools`, `connect`, `setup-project` and `connect` again, each to its e
 
 One report, in this order: the machine (what changed, what is pending), the connections (confirmed, pending), the repository (written, kept, reconciled, the code created and whether it builds), and the actions left for a human — creating the publisher or the core solution, the upgrades an existing project chose to keep for later.
 
-End with one sentence on how work starts from now on: every feature, fix or chore goes on its own branch, with its feature solution created by `dv-solution`, and the agent asks which branch before the first change. `docs/development/solutions.md` has the flow.
+End with one sentence on how work starts from now on: every change starts with `/opsx:propose`, which creates its branch; after the functional and technical gates, `/opsx:apply` creates its feature solution with `dv-solution`. A quick fix outside OpenSpec still gets its own branch, asked before the first change. `AGENTS.md` and `docs/development/solutions.md` have the flow.
