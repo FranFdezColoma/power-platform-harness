@@ -12,6 +12,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - If the change touches a technology with no standards file, apply this file alone and state that gap explicitly in the final report.
 - Project identity: project `{{project_name}}`, publisher `{{publisher_unique_name}}` with customization prefix `{{publisher_prefix}}`, core solution `{{core_solution}}` in DEV (`none` when the project has none). The project name is also the root .NET namespace.
 - Only when a tool a task needs is missing or fails, read `docs/agents/toolchain.md` for what the machine needs; the harness's `setup-tools` skill installs it. Never assume a tool is present or absent: check when the task needs it.
+- Versions: the standards name no package or SDK version that would go stale. When a new project needs a pin (a NuGet package, an npm dev dependency, an MSBuild SDK), look up the latest stable release at its official source (NuGet, npm, the vendor's documentation) and pin that exact version. A project that already pins a version keeps it; upgrading is its own change, never alongside unrelated work.
 
 ## Design principles
 

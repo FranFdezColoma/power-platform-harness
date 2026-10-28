@@ -27,7 +27,7 @@ Before writing any code or touching any component, settle where the work lives. 
 
 - **Current branch** — continue. If it has a feature solution, components go into it.
 - **Current branch is the trunk** (`main`, `master`, or the repository's default branch) — it has no feature solution. If the core solution exists, say that the change lands in the core solution alone, and continue. If the core solution is `none`, there is no solution to put a component in: ask for a new branch instead.
-- **New branch** — create the branch with `scripts/new-feature.ps1` and its feature solution with `dv-solution`, below. Never skip the question because the intent seems obvious.
+- **New branch** — check and create the branch, then its feature solution with `dv-solution`, below. Never skip the question because the intent seems obvious.
 
 ### Names
 
@@ -35,28 +35,28 @@ Both names come from one answer, so the branch and the solution can never drift 
 
 | Thing | Rule | Example |
 | --- | --- | --- |
-| Branch | `<type>/<short-description>`, type is `feature`, `fix` or `chore`, description in kebab-case | `feature/lead-scoring-widget` |
-| Feature solution | `<type>_<ShortDescriptionInPascalCase>`, at most 65 characters | `feature_LeadScoringWidget` |
+| Branch | `<type>/<short-description>`, type is `feature`, `fix` or `chore`, description in kebab-case: lowercase letters and digits separated by single hyphens | `feature/lead-scoring-widget` |
+| Feature solution | `<type>_<ShortDescriptionInPascalCase>`: each kebab-case word capitalised and joined, at most 65 characters (the length of Dataverse's unique name column) | `feature_LeadScoringWidget` |
 
 Propose the short description from what the user asked for and confirm it before creating anything: the solution unique name follows it and cannot be renamed afterwards.
 
 ### Create the branch and the feature solution
 
-`scripts/new-feature.ps1` derives both names, checks that they are free, and creates the branch. It never creates the solution: `dv-solution` does, with the name the script prints. Never derive the names by hand: each manual step is a chance to get the name, the version or the publisher wrong, and none of them can be corrected afterwards.
+Check everything before changing anything. When a check fails, stop, say which one and why, and change nothing; do not work around it.
 
-```bash
-pwsh -NoProfile -File scripts/new-feature.ps1 -Type <feature|fix|chore> -Name <short-description> -DryRun
-pwsh -NoProfile -File scripts/new-feature.ps1 -Type <feature|fix|chore> -Name <short-description>
-```
+1. The branch does not exist yet, locally or on origin (`git branch --list <branch>`, `git ls-remote --heads origin <branch>`).
+2. `pac org who --environment <devUrl>` reaches the DEV environment `.power-platform/project.json` names (`connections.dataverse.devUrl`), and its name does not look like production or test (`prod`, `prd`, `live`, `test`, `qa`, `uat`, `stag`, `preprod`).
+3. Publisher `{{publisher_unique_name}}` exists there with prefix `{{publisher_prefix}}`.
+4. No solution in DEV already has the feature solution's unique name.
 
-- Run the dry run first and show the user its plan: branch, feature solution, publisher and environment.
-- The script checks everything before anything is changed: the branch does not exist yet, here or on origin; `pac` reaches the DEV environment `.power-platform/project.json` names, and it does not look like production or test; publisher `{{publisher_unique_name}}` exists there with prefix `{{publisher_prefix}}`; and no solution already has that unique name. When a check fails, report its message as is; do not work around it.
+Then show the user the plan — branch, feature solution, publisher and environment — and wait for the go-ahead.
+
 - Offer both ways of creating the branch, and let the user choose:
-  - **Checkout** — the default. Uncommitted changes move to the new branch.
-  - **Worktree** — add `-Worktree`: the branch is created in `../<repo>.worktrees/<type>/<short-description>`; continue inside it. Recommend it when another session is working in this folder: switching its branch underneath it loses work.
-- Work that creates or modifies no Dataverse component (a dependency bump, a code-only refactor) needs no feature solution: add `-SkipSolution` to check and create only the branch.
-- Then create the feature solution with `dv-solution`, exactly as the script printed it: that unique name, version `1.0.0.0`, unmanaged, publisher `{{publisher_unique_name}}`, in DEV. Creating a solution is a human decision: do it only after the user confirms, never as a side effect of another task. Do not publish customizations: publishing in a shared DEV publishes every colleague's unpublished work along with it.
-- Re-running the script on the branch it created keeps the branch and repeats the checks, so the solution step can be retried.
+  - **Checkout** — the default: `git switch -c <branch>`. Uncommitted changes move to the new branch.
+  - **Worktree** — `git worktree add -b <branch> ../<repo>.worktrees/<type>/<short-description>`; continue inside it. Recommend it when another session is working in this folder: switching its branch underneath it loses work.
+- Work that creates or modifies no Dataverse component (a dependency bump, a code-only refactor) needs no feature solution: run check 1 only and create the branch.
+- Then create the feature solution with `dv-solution`: that unique name, version `1.0.0.0`, unmanaged, publisher `{{publisher_unique_name}}`, in DEV. Creating a solution is a human decision: do it only after the user confirms, never as a side effect of another task. Do not publish customizations: publishing in a shared DEV publishes every colleague's unpublished work along with it.
+- If creating the solution fails, stay on the branch, repeat checks 2 to 4 and retry.
 
 ## Which solution a component goes into
 

@@ -7,7 +7,7 @@
 
 ## Official skills
 
-Microsoft's Dataverse and Power Platform skills supply the capabilities (connecting, metadata, data, the solution lifecycle, model-driven apps, flows); this repository's standards supply the conventions. Before following an official skill's rule on the scripting language, the folder layout, testing, or importing a solution, read `docs/agents/skill-exceptions.md`: it lists every official rule this project overrides, quoted verbatim. Any other conflict between a standard and an official skill is a defect: report it rather than pick a side.
+Microsoft's Dataverse and Power Platform skills supply the capabilities (connecting, metadata, data, the solution lifecycle, model-driven apps, flows); this repository's standards supply the conventions. Before following an official skill's rule on the folder layout, testing, or importing a solution, read `docs/agents/skill-exceptions.md`: it lists every official rule this project overrides, quoted verbatim. Any other conflict between a standard and an official skill is a defect: report it rather than pick a side.
 
 ## Project context
 

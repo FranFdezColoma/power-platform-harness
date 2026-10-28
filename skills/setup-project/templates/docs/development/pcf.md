@@ -5,9 +5,9 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## Stack
 - Applies to model-driven and canvas apps. Virtual controls are not supported on Power Pages; use `control-type="standard"` there instead.
 - Use React PCF virtual controls (`control-type="virtual"`) with platform libraries.
-- React: platform library `16.14.0`.
-- Fluent UI: v9 via platform library `9.46.2`; do not bundle React or Fluent UI.
-- Use the repository's pinned TypeScript, `pcf-scripts` and platform-library (React/Fluent) versions declared in `ControlManifest.Input.xml`; do not upgrade any of them independently of a reviewed change — a newer Fluent platform-library version than the one declared here has caused solution import failures.
+- React and Fluent UI v9 through platform libraries; do not bundle React or Fluent UI.
+- A new control declares the React and Fluent platform-library versions Microsoft's PCF documentation currently lists as supported: check it when creating the control, never a newer version than it lists.
+- Use the repository's pinned TypeScript, `pcf-scripts` and platform-library (React/Fluent) versions declared in `ControlManifest.Input.xml`; do not upgrade any of them independently of a reviewed change — a newer Fluent platform-library version than the platform supports has caused solution import failures.
 - Tests: Vitest + Testing Library.
 
 ## Structure

@@ -8,8 +8,8 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Tests: Vitest with the `node` environment. Form scripts reach the form only through `executionContext`, `formContext` and `Xrm`, which tests mock, so they need no browser DOM.
 - Only a test that genuinely exercises browser APIs (an HTML web resource's own `document`, `localStorage`, `window.location`) runs under `jsdom`, opted into for that file alone with `// @vitest-environment jsdom` on its first line, adding `jsdom` as a pinned dev dependency when the first such test appears.
 - Prefer manual mocks for simple form scenarios. Use `xrm-mock` when manual mocks become impractical.
-- Lint: ESLint 10 (flat config), shared with the PCF projects.
-- Pin exact versions in `package.json`.
+- Lint: ESLint (flat config), shared with the PCF projects.
+- Pin exact versions in `package.json`, per `docs/agents/development-standards.md`.
 
 ## Structure
 - One web resource per file, named `<TableOrDomain>Form.js` or `<TableOrDomain>Ribbon.js`, in a folder named after the table's logical name (or the domain, in lowercase): `{{publisher_prefix}}_/src/js/<table>/<TableOrDomain>Form.js`, e.g. `{{publisher_prefix}}_/src/js/account/AccountForm.js`. Never directly in `js/`.

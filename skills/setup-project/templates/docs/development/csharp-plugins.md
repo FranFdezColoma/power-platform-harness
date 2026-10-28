@@ -7,7 +7,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Use SDK-style projects and deploy as Dataverse `.nupkg` plug-in packages.
 - Do not strong-name assemblies. No `.snk`; `<SignAssembly>false</SignAssembly>`.
 - Generate early-bound classes with `pac modelbuilder build --namespace {{project_name}}.Common.Generated --outdirectory src/PowerPlatform/Plugins/{{project_name}}.Common/Generated`. Without `--namespace` the classes land in the global namespace. Never edit generated files manually.
-- Tests: xUnit 2.9.3 + FakeXrmEasy.Plugins.v9 2.9.4. Add FakeXrmEasy.Messages.v9 2.9.4 only when message/Custom API simulation requires it.
+- Tests: xUnit + FakeXrmEasy.Plugins.v9, pinned per `docs/agents/development-standards.md`. Add FakeXrmEasy.Messages.v9, at the same version as FakeXrmEasy.Plugins.v9, only when message/Custom API simulation requires it.
 
 ## Projects
 - All Power Platform code lives under `src/PowerPlatform/`, in `PowerPlatform.sln`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `PowerPlatform.sln` of the same name, and every project is nested in the solution folder that matches its physical folder.
@@ -41,6 +41,10 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ```
 - Each plugin project has exactly one test project, next to it: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>.Tests/`. There is no separate `tests/` tree.
 - `src/PowerPlatform/Plugins/{{project_name}}.Common/` is the shared library: `PluginBase.cs`, the early-bound classes and helpers used by more than one project. It holds no plugin classes and is not registered in Dataverse.
+- The first plugin or Custom API creates what does not exist yet:
+  - `src/PowerPlatform/PowerPlatform.sln` (`dotnet new sln`), with the solution folders above.
+  - `{{project_name}}.Common.csproj`: the `.csproj` above with `{{project_name}}.Common` as `RootNamespace` and `AssemblyName`, and without `PackageId`, `Version`, the `Microsoft.PowerApps.MSBuild.Plugin` reference and the project reference. It is a class library, not a plug-in package.
+  - `PluginBase.cs` in it: the `PluginBase`, `ILocalPluginContext` and `LocalPluginContext` that `pac plugin init` generates. Run `pac plugin init` in a temporary folder, copy only `PluginBase.cs`, change its namespace to `{{project_name}}.Common`, and delete the temporary folder.
 - Add every new project to `PowerPlatform.sln` in its solution folder: `dotnet sln src/PowerPlatform/PowerPlatform.sln add <csproj> --solution-folder Plugins`.
 
 ## Structure

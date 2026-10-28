@@ -2,14 +2,7 @@
 
 The official skills apply in this repository except where an entry below overrides one of their rules. Each entry quotes the overridden rule verbatim, so it stays recognisable when the skill is updated. This list is closed: an exception exists only because the harness declares it here, never because a standard happens to read differently from a skill. A conflict that is not on this list is a defect: report it instead of resolving it.
 
-An entry whose quote no longer appears in the installed skill is **stale**: the official rule changed, and the exception no longer says what it overrides. The harness's `setup-tools` check reports it. Until the entry is updated, follow the official skill and report the stale entry.
-
-## E1. PowerShell for the harness scripts
-
-- **Overrides** `dv-overview`: "Python is the language for automation **logic**"
-- **Rule:** The scripts the harness ships (`scripts/new-feature.ps1`) are PowerShell and stay PowerShell. A new automation script follows the official rule: Python.
-- **Scope:** The harness's own scripts only.
-- **Reason:** They run before any Python environment exists, need only git and `pac`, and behave the same in every agent on Windows PowerShell 5.1 and 7.
+An entry whose quote no longer appears in the installed skill is **stale**: the official rule changed, and the exception no longer says what it overrides. The harness's `setup-tools` skill looks for each quote after installing or updating the official skills. Until the entry is updated, follow the official skill and report the stale entry.
 
 ## E2. Code lives in `src/PowerPlatform/`
 
