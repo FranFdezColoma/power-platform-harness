@@ -8,7 +8,7 @@ agents start at `AGENTS.md`.
 ## Approving a change
 
 Each change records its gates in `openspec/changes/<change>/approval.md` (format in "Gates"
-in `AGENTS.md`). The file moves with the change when it is archived.
+in `docs/agents/openspec-workflow.md`). The file moves with the change when it is archived.
 
 - **Approve or request changes**: switch to the change's branch, review the artifacts, edit
   your gate's line, then commit and push:

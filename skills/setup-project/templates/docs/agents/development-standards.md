@@ -4,7 +4,7 @@ Rules that apply to every change in this repository, whatever the technology.
 
 ## Before starting a unit of work
 
-Every feature, fix or chore is developed on its own branch and, when it touches Dataverse components, in its own feature solution named after that branch. An OpenSpec change gets both at the points "Branch and feature solution" in `AGENTS.md` sets. Any other work: before its first change, ask the user whether it goes on the current branch or on a new one, and wait for the answer. `docs/development/solutions.md` holds the naming rules and the commands; follow them rather than improvising.
+Every feature, fix or chore is developed on its own branch and, when it touches Dataverse components, in its own feature solution named after that branch. An OpenSpec change gets both at the points "Branch and feature solution" in `docs/agents/openspec-workflow.md` sets. Any other work: before its first change, ask the user whether it goes on the current branch or on a new one, and wait for the answer. `docs/development/solutions.md` holds the naming rules and the commands; follow them rather than improvising.
 
 ## How to use this file
 

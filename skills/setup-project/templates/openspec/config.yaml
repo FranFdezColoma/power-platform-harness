@@ -1,6 +1,6 @@
 schema: spec-driven
 context: |
-  Follow the index in AGENTS.md.
+  Follow docs/agents/openspec-workflow.md.
   Language: {{artifact_language}}. All artifacts must be written in {{artifact_language}}.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 githubCopilot:

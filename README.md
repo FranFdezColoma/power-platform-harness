@@ -58,7 +58,7 @@ Each one can be run on its own.
 ## What it writes
 
 ```
-AGENTS.md                                # the index: what each OpenSpec step reads, the gates
+AGENTS.md                                # where to start: points each kind of work at its file
 CLAUDE.md                                # @AGENTS.md
 README.md                                # for people: how to approve a change
 .gitignore                               # .NET, PCF and secrets hygiene
@@ -75,6 +75,7 @@ docs/
 │   └── glossary.md                      # business terms used in specs
 ├── adr/0000-template.md                 # architecture decision records
 ├── agents/
+│   ├── openspec-workflow.md             # what each /opsx step reads, branch, gates
 │   ├── solutioning-standards.md         # what design.md reads
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
 │   └── toolchain.md                     # the tools a machine needs, and what for
