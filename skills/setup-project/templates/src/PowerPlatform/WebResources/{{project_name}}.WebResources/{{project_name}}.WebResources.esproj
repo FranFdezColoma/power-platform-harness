@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6887863">
-  <ItemGroup>
-    <Folder Include="{{publisher_prefix}}_\src\css\" />
-    <Folder Include="{{publisher_prefix}}_\src\html\" />
-    <Folder Include="{{publisher_prefix}}_\src\icons\" />
-    <Folder Include="{{publisher_prefix}}_\src\js\" />
-  </ItemGroup>
-</Project>

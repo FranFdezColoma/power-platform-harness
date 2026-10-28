@@ -1,16 +1,9 @@
-# This repository only. templates/.gitignore is template content shipped into every
-# scaffolded project: it is tracked, never ignored, and nothing here applies to it.
+# This repository only. skills/setup-project/templates/.gitignore is template content shipped into
+# every project: it is tracked, never ignored, and nothing here applies to it.
 .claude/settings.local.json
 .build-cache/
 
-# Build output Visual Studio or npm may leave inside templates/; scaffold.ps1 never copies it.
-templates/**/bin/
-templates/**/obj/
-templates/**/node_modules/
-
-# Discovery snapshots that include this machine and its connected environment.
-tests/discovery/.local/
-
-# Build output an IDE may restore inside the discovery fixtures: never fixture content.
-tests/**/bin/
-tests/**/obj/
+# Build output Visual Studio or npm may leave inside the templates: never template content.
+skills/setup-project/templates/**/bin/
+skills/setup-project/templates/**/obj/
+skills/setup-project/templates/**/node_modules/
