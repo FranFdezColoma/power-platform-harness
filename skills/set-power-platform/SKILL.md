@@ -2,28 +2,28 @@
 name: set-power-platform
 description: "Install the Power Platform / Dynamics 365 CE harness in this folder: agent instructions, toolchain requirements, development standards per technology, and the per-branch feature solution workflow. Checks the required and recommended tools and helps connect pac to DEV. Works on an empty folder and on an existing project, where it reads the publisher, prefix, core solution and stack from the repository and the environment instead of asking, and adapts the standards to the versions the project already uses."
 disable-model-invocation: true
-allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(dotnet tool install --global Microsoft.PowerApps.CLI.Tool*), Bash(pac auth create *), Bash(pac auth list*), Bash(pac org who*), Bash(pac solution list*), Bash(git init*), Bash(git status*), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Read, Write, Edit, Glob, Grep, AskUserQuestion
+allowed-tools: Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/discover.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" *), Bash(powershell -NoProfile -ExecutionPolicy Bypass -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-tools/scripts/check-tools.ps1" *), Bash(winget install --id Microsoft.PowerAppsCLI*), Bash(pac auth create *), Bash(pac auth list*), Bash(pac org who*), Bash(pac solution list*), Bash(git init*), Bash(git status*), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Install the Power Platform harness
 
 Two jobs, decided by what is already in the folder:
 
-- **Empty folder** — scaffold the full harness: `CLAUDE.md`, `.claude/settings.json` (permission rules), `scripts/new-feature.ps1` (branch + feature solution), `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
+- **Empty folder** — scaffold the full harness: `AGENTS.md`, `CLAUDE.md` (`@AGENTS.md`), `.power-platform/project.json`, `.claude/settings.json` (permission rules), `scripts/new-feature.ps1` (names and checks the branch and its feature solution, creates the branch), `docs/agents/development-standards.md`, `docs/agents/toolchain.md`, `docs/agents/skill-exceptions.md`, `docs/development/*.md`, `.gitignore`, the code projects under `src/PowerPlatform/` (`PowerPlatform.sln`, the shared `<ProjectName>.Common` plugin library and the WebResources build project), and the `src/PowerPlatform/{Plugins,CustomAPIs,WebResources}` and `docs/adr/` layout.
 - **Existing project** — adopt the harness into it: add only what is missing, keep what the project already has, and adapt the standards to the stack the project actually uses. Never set a version, framework or layout the project does not use.
 
 Three of the plugin's scripts do the work. `check-tools.ps1` (setup-tools skill) and `discover.ps1` (setup-project skill) read; `scaffold.ps1` (setup-project skill) writes files and never talks to Dataverse. Do not write or paraphrase template content yourself, and do not hand-craft files the scaffold produces.
 
 ## Running the scripts
 
-Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not installed, run the same script and arguments with `powershell -NoProfile -ExecutionPolicy Bypass -File` instead: all three run on Windows PowerShell 5.1. If neither exists, stop: nothing in this skill can run without PowerShell. Tell the user to install it (`docs/agents/toolchain.md` in the templates has the command) and end there.
+Every command below starts with `pwsh -NoProfile -File`. If `pwsh` is not installed, run the same script and arguments with `powershell -NoProfile -ExecutionPolicy Bypass -File` instead: all three run on Windows PowerShell 5.1. If neither exists, stop: nothing in this skill can run without PowerShell. Tell the user to install it (`winget install --id Microsoft.PowerShell --source winget`) and end there.
 
 ## Asking the user: hard constraint
 
 `AskUserQuestion` takes at most 4 questions, and each needs 2 to 4 concrete predefined options. A free value (a name, a prefix, a url) has no options to offer, so it is asked for in a plain message, never through the tool. Calling the tool without real options fails with `Invalid tool parameters`.
 
 - **Free-text values** (project name, publisher, prefix, core solution, description, environment url): ask in a plain assistant message as a numbered list, then stop and wait.
-- **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, picking one of the publishers discovery found in step 4, the single go-ahead in step 6, and committing in step 8.
+- **`AskUserQuestion` is for closed choices only**: the language in step 0 when nothing else establishes it, installing `pac` in step 2, the repository provider and picking one of the publishers discovery found in step 4, the single go-ahead in step 6, and committing in step 8.
 
 Never invent a value. Never derive one silently from the folder name. A wrong publisher prefix cannot be undone once components exist.
 
@@ -66,11 +66,11 @@ A requirement may also carry a `warning` (an odd-numbered Node release, for exam
 
 None of these stops the skill: the harness only writes files. Every requirement that is not `ok` goes into the final report as pending.
 
-**`pac` missing.** Offer to install it with `AskUserQuestion` (install now / skip). On approval, run `dotnet tool install --global Microsoft.PowerApps.CLI.Tool`; it needs the .NET SDK, so if `dotnet` is missing, say so and leave `pac` pending instead. After a successful install, tell the user that a new terminal may be needed for `pac` to be on PATH, and re-run both Discover commands.
+**`pac` missing.** Offer to install it with `AskUserQuestion` (install now / skip). On approval, run `winget install --id Microsoft.PowerAppsCLI --source winget`. After a successful install, tell the user that a new terminal may be needed for `pac` to be on PATH, and re-run both Discover commands.
 
 **Recommended tools.** Two are recommended, never required:
 
-- **Dataverse MCP server** — check your own available tools for a Dataverse MCP server; this script cannot see what is registered with you. `toolchain.recommended.dataverseMcpProxy.installed` says whether the local proxy is installed. If no server is available, recommend the setup in `docs/agents/toolchain.md`.
+- **Dataverse MCP server** — check your own available tools for a Dataverse MCP server; this script cannot see what is registered with you. If no server is available, recommend running the `dv-connect` skill, which registers it.
 - **Playwright** — `toolchain.recommended.playwrightCli.installed`, or a Playwright MCP server among your own tools. If neither, recommend `playwright-cli` with its `install` command.
 
 ## 3. Connect `pac` to DEV
@@ -85,21 +85,22 @@ If the connection cannot be made — conditional access, no network, the user de
 
 ## 4. Values
 
-Five values, resolved before scaffolding. `proposedValues` carries what discovery found; each entry has a `source` and a `confidence`:
+Six values, resolved before scaffolding. `proposedValues` carries what discovery found; each entry has a `source` and a `confidence`:
 
 - `high` — read out of a committed `Solution.xml` or an exported solution. State the source and move on.
 - `medium` — inferred (a shared root namespace, a prefix seen in file names, a solution named Core, a README paragraph). Show the evidence and let the user correct it.
 - `none` — ask, as plain text.
 
-Show all five as a table with value, source and confidence, then ask in one plain-text message for what `recommendation.askUserFor` lists. Values the user passed as arguments to this skill are proposals: echo them back for confirmation.
+Show all six as a table with value, source and confidence, then ask in one plain-text message for what `recommendation.askUserFor` lists. Values the user passed as arguments to this skill are proposals: echo them back for confirmation.
 
 | Value | What it is | Rules |
 | --- | --- | --- |
 | `ProjectName` | Short project name. It is also the root .NET namespace (`<ProjectName>.Common`, `<ProjectName>.<Entity>`), and names the JavaScript form API namespace and the WebResources project. Never ask for a namespace separately | Starts with a letter, letters and digits only |
-| `PublisherUniqueName` | Dataverse publisher **unique** name, not its display name. `pac solution init` needs it to create feature solutions | Letters, digits and underscores |
+| `PublisherUniqueName` | Dataverse publisher **unique** name, not its display name. `dv-solution` creates the feature solutions under it | Letters, digits and underscores |
 | `PublisherPrefix` | Dataverse customization prefix, carried by every component | 2-8 lowercase alphanumeric, starts with a letter, cannot start with `mscrm`. **Permanent**: say this out loud before accepting it |
 | `CoreSolution` | Unique name of the core unmanaged solution in DEV, or `none` when the project has none. Optional: omit it and the scaffold uses `none` | Letters, digits and underscores, no publisher prefix |
-| `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `CLAUDE.md` | Free text |
+| `ProjectDescription` | One or two sentences on what the project delivers. Becomes the Description section of `AGENTS.md` | Free text |
+| `RepositoryProvider` | Where the repository is hosted. Decides whether the instructions name `gh` or `az repos`, and is recorded in `.power-platform/project.json` | `github` or `azure-devops`. Propose it from `repository.git.remoteUrl` (`github.com` is `github`; `dev.azure.com` or `visualstudio.com` is `azure-devops`) and confirm it with `AskUserQuestion`; with no remote, ask |
 
 - **Core solution.** Most projects have one, but it is not mandatory. Check the proposed name against `environment.solutions`; a name flagged `possiblyTruncated` was cut by `pac solution list`, so confirm it. When `environment.solutionsTruncated` is true, that list holds only the first 100 unmanaged solutions: a core solution missing from it may still exist, so ask rather than conclude it does not. The proposal itself was computed over the full list. `featureSolutionsInEnvironment` lists the per-branch solutions already there: none of them is the core solution.
 - **Publisher.** When connected, discovery reads `environment.publishers` (every publisher a project can own; `isDefault` marks the environment's default ones) and the publisher of each unmanaged solution, and proposes both values from them, in this order: the prefix given with `-PublisherPrefix`, the core solution's publisher, then the only custom publisher in the environment. Act on what is still missing:
@@ -124,7 +125,7 @@ When `layout.folders` deviates, pass `-SkipLayout`: creating `src/PowerPlatform/
 Run the dry run first and read its output yourself; do not make the user confirm twice:
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -Json -DryRun <flags>
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -RepositoryProvider <provider> -Json -DryRun <flags>
 ```
 
 `<flags>` is exactly what `recommendation.scaffoldArguments` lists — empty for a new project — plus `-SkipLayout` if step 5 decided it. `-Json` keeps the output parseable. The script validates every value, so a bad prefix or name surfaces here, before anything is written.
@@ -140,15 +141,18 @@ Flag rules:
 
 Report the warnings in `recommendation.warnings` alongside the dry run. If the script fails, report its output verbatim. Do not hand-edit generated files to work around it.
 
-### When `CLAUDE.md` was skipped
+### When `AGENTS.md` or `CLAUDE.md` was skipped
 
-`-SkipExisting` keeps the project's `CLAUDE.md`, which means nothing yet points the agent at `docs/agents/development-standards.md` and the whole harness is unreachable. Fix it without paraphrasing: render the templates into a throwaway folder, read the rendered `CLAUDE.md`, and merge its sections into the existing one.
+`-SkipExisting` keeps the project's own instruction files, so nothing may yet point the agent at `docs/agents/development-standards.md`, and then the whole harness is unreachable. Fix it without paraphrasing and without moving existing content: render the templates into a throwaway folder and take the harness text from the rendered `AGENTS.md`.
 
 ```bash
-pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -TargetPath <temp folder> -SkipLayout
+pwsh -NoProfile -File "${CLAUDE_PLUGIN_ROOT}/skills/setup-project/scripts/scaffold.ps1" -ProjectName <name> -PublisherUniqueName <publisher> -PublisherPrefix <prefix> -CoreSolution <core-or-none> -ProjectDescription "<description>" -RepositoryProvider <provider> -TargetPath <temp folder> -SkipLayout
 ```
 
-Keep the project's own content. Add the harness sections it lacks, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Show the user the diff. If the existing `CLAUDE.md` contradicts a harness rule, report the conflict instead of resolving it silently.
+- **`AGENTS.md` existed** — add the rendered `AGENTS.md` sections it lacks, starting with the mandatory-reading pointer to `docs/agents/development-standards.md`. Keep the project's own content where it is.
+- **Only `CLAUDE.md` existed** — the scaffold wrote a new `AGENTS.md`. Add one line, `@AGENTS.md`, to the existing `CLAUDE.md`, and nothing else.
+
+Show the user every diff before writing it. If an existing file contradicts a harness rule, report the conflict instead of resolving it silently.
 
 ### When `.claude/settings.json` was skipped
 
@@ -186,4 +190,4 @@ Then, as a list the user can act on:
 6. **Workspace trust** — the permission rules in `.claude/settings.json` that allow read-only checks apply only after each developer accepts Claude Code's trust prompt for the repository; the rules that deny irreversible operations apply from the start.
 7. Read `docs/agents/development-standards.md` before the first change.
 
-End with one sentence on how work starts from now on: every feature, fix or chore goes on its own branch, created with its feature solution by `scripts/new-feature.ps1`, and the agent asks which branch before the first change. `docs/development/solutions.md` has the flow.
+End with one sentence on how work starts from now on: every feature, fix or chore goes on its own branch, created by `scripts/new-feature.ps1`, with its feature solution created by `dv-solution`, and the agent asks which branch before the first change. `docs/development/solutions.md` has the flow.
