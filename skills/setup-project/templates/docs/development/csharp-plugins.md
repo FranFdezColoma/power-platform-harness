@@ -11,7 +11,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 
 ## Projects
 - All Power Platform code lives under `src/PowerPlatform/`, in `PowerPlatform.sln`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `PowerPlatform.sln` of the same name, and every project is nested in the solution folder that matches its physical folder.
-- One plugin project per table: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>/{{project_name}}.<Entity>.csproj`, e.g. `{{project_name}}.Account`. Each one is its own plug-in package. Do not use `pac plugin init`: it adds `.vscode/`, `.gitignore`, `PluginBase.cs` and `Plugin1.cs` that the project does not want. Write the `.csproj` as below, replacing `<Entity>`, and nothing else; `Microsoft.PowerApps.MSBuild.Plugin` produces the `.nupkg` on `dotnet build`:
+- One plugin project per table, grouped by the entity targeted by the trigger: plugins triggered on Account belong in the Account project: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>/{{project_name}}.<Entity>.csproj`, e.g. `{{project_name}}.Account`. Each one is its own plug-in package. Do not use `pac plugin init`: it adds `.vscode/`, `.gitignore`, `PluginBase.cs` and `Plugin1.cs` that the project does not want. Write the `.csproj` as below, replacing `<Entity>`, and nothing else; `Microsoft.PowerApps.MSBuild.Plugin` produces the `.nupkg` on `dotnet build`:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">

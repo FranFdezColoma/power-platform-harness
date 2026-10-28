@@ -21,7 +21,7 @@ moment, so the harness carries no version list to maintain. It proposes; you app
 Microsoft's [Dataverse skills](https://github.com/microsoft/Dataverse-skills) and
 [Power Platform skills](https://github.com/microsoft/power-platform-skills) supply the
 capabilities — connecting, metadata, data, solutions, apps, flows. The harness supplies the
-conventions, and declares every official rule it overrides.
+conventions the agent applies while it uses them.
 
 ## Install
 
@@ -55,7 +55,7 @@ Each one can be run on its own.
 AGENTS.md                                # the harness instructions, for every agent
 CLAUDE.md                                # @AGENTS.md
 .gitignore                               # .NET, PCF and secrets hygiene
-.claude/settings.json                    # denies irreversible operations, allows read-only checks
+.claude/settings.json                    # allows the agent's work, asks before deletes and imports
 .power-platform/project.json             # project identity and expected connections; no secrets
 solutions/README.md                      # exported solution source goes here
 scripts/README.md                        # the Dataverse skills' helper scripts go here
@@ -63,8 +63,7 @@ src/PowerPlatform/                       # new project only: PowerPlatform.sln, 
 docs/
 ├── agents/
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
-│   ├── toolchain.md                     # the tools a machine needs, and what for
-│   └── skill-exceptions.md              # the official skill rules this project overrides
+│   └── toolchain.md                     # the tools a machine needs, and what for
 └── development/
     ├── javascript.md                    # web resources
     ├── webresources-project.md          # the .esproj + Vitest/ESLint project

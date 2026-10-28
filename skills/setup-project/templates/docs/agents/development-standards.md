@@ -16,6 +16,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 ## Design principles
 
+- Avoid over engineering
 - Do not introduce abstractions until there is a demonstrated need. Two call sites are not a need; three divergent ones might be.
 - Change only what the task requires. No opportunistic refactors, renames, formatting sweeps or dependency bumps riding along with a functional change: they hide the real diff from the reviewer.
 - Never introduce a new technology, framework, library, architectural pattern, testing framework or project convention when an equivalent project standard already exists.
@@ -60,7 +61,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 ## Language
 
-- English for all technical work and artifacts.
+- English for all code-related content; the project’s language for everything else.
 
 ## Testing
 
@@ -77,11 +78,11 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 - Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Retrieve it with the official Dataverse skills (`dv-metadata`, `dv-query`, `dv-solution`); `dv-overview` states the same rule.
 - Name the environment before any operation against it (`pac org who --environment <devUrl>`, with the DEV url from `.power-platform/project.json`). Treat any environment you have not verified as production.
-- Write operations are permitted in DEV only, through the official skills, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human. This holds whatever the tool: `.claude/settings.json` denies the MCP server's delete tools, but nothing blocks a Python script, so a script that deletes is handed to the developer, not run.
+- Write operations are permitted in DEV only, through the official skills, and always into the solution `docs/development/solutions.md` names. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human. This holds whatever the tool: `.claude/settings.json` asks before the MCP server's delete tools and before deleting commands, but nothing stops a Python script, so a script that deletes is handed to the developer, not run.
 
 ## Blocked commands
 
-- When a command is denied, do not reach it another way (a different spelling, a script, a subshell). Prepare the command and hand it to the developer.
+- When a command is denied or the developer declines it, do not reach it another way (a different spelling, a script, a subshell). Prepare the command and hand it to the developer.
 - Never edit `.claude/settings.json` to get past a block.
 
 ## Reporting

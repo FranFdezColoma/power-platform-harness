@@ -11,8 +11,8 @@ Three skills of this plugin do the work, in this order, `connect` twice. This sk
 
 1. **`setup-tools`** — the machine: CLIs, runtimes, the official skills and plugins.
 2. **`connect`** — the sign-ins: `pac` against DEV, `az` in the tenant, the repository, the `playwright-cli` session.
-3. **`setup-project`** — the repository: the harness files, adapted to an existing project, and the starting code for a new one. With `pac` signed in, it reads the publisher, prefix and core solution from DEV instead of asking.
-4. **`connect`** again — records the connections in `.power-platform/project.json` and hands the Dataverse MCP server and `.env` to `dv-connect`, now that the repository is laid out (exception E2 in `docs/agents/skill-exceptions.md`).
+3. **`setup-project`** — the repository: the harness files, adapted to an existing project, and the starting code for a new one. With `pac` signed in, it reads the publisher, prefix and core solution from DEV (if it exists) instead of asking.
+4. **`connect`** again — records the connections in `.power-platform/project.json` and hands the Dataverse MCP server and `.env` to `dv-connect`, now that the repository is laid out.
 
 Each one can also run on its own; this skill adds nothing to what they do.
 

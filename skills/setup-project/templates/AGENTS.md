@@ -3,11 +3,11 @@
 
 ## Development standards
 
-`docs/agents/development-standards.md` is mandatory reading before any change: it holds the technology-agnostic rules, the Definition of Done, and the index of per-technology standards. From that index, read only the file(s) relevant to what you're about to touch; don't preload the others.
+`docs/agents/development-standards.md` is mandatory reading before any implementation: it holds the technology-agnostic rules, the Definition of Done, and the index of per-technology standards. From that index, read only the file(s) relevant to what you're about to touch.
 
-## Official skills
+## Microsoft official skills
 
-Microsoft's Dataverse and Power Platform skills supply the capabilities (connecting, metadata, data, the solution lifecycle, model-driven apps, flows); this repository's standards supply the conventions. Before following an official skill's rule on the folder layout, testing, or importing a solution, read `docs/agents/skill-exceptions.md`: it lists every official rule this project overrides, quoted verbatim. Any other conflict between a standard and an official skill is a defect: report it rather than pick a side.
+Use Microsoft's Dataverse and Power Platform skills when needed to do the work against Dataverse. This repository's standards set the conventions and guidelines for coding.
 
 ## Project context
 

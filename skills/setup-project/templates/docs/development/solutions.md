@@ -2,7 +2,7 @@
 
 Read `docs/agents/development-standards.md` first. This file only adds what is specific to solutions and to working against the DEV environment.
 
-Scope: everything that happens inside DEV — which solution a component goes into, how the per-branch feature solution is created, and how it is exported into the repository before the pull request. The official `dv-solution` skill performs these operations; this file sets the names, the order and the limits. Promoting a solution to test or production belongs to a human or a delivery pipeline, never to the agent (exception E4 in `docs/agents/skill-exceptions.md`).
+Scope: everything that happens inside DEV — which solution a component goes into, how the per-branch feature solution is created, and how it is exported into the repository before the pull request. The official `dv-solution` skill performs these operations; this file sets the names, the order and the limits. Promoting a solution to test or production belongs to a human or a delivery pipeline, never to the agent.
 
 ## Environments
 
@@ -93,7 +93,7 @@ The feature solution goes into the repository with the branch, so the review dif
 
 - Export it with `dv-solution` (export, unpack, delete the zip) into `solutions/<feature solution>/`, and commit the unpacked source on the branch. `solutions/` sits at the repository root, next to `src/`: generated solution source and hand-written code stay apart.
 - The core solution `{{core_solution}}` is exported only from the trunk, as an explicit operation the user asks for. Exporting it from a branch would capture colleagues' unfinished work in the shared DEV.
-- Importing goes to DEV only (exception E4). Promotion to test or production is a human's or a pipeline's job.
+- Importing goes to DEV only. Promotion to test or production is a human's or a pipeline's job.
 
 ## After the merge
 

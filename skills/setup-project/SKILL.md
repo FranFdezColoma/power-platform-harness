@@ -59,7 +59,7 @@ When the project already has its own folder layout, do not create the harness's 
 
 ## 4. Plan, confirm once, write
 
-List what you will write: each file under `templates/`, at the same relative path in the current folder. For an existing project, mark each file that already exists as **kept**: it is not overwritten. Overwrite a file only when the user explicitly accepts overwriting that exact file. `solutions/README.md` and `scripts/README.md` are written for an empty folder only; with `src/PowerPlatform/` from step 6 they lay the workspace out before `dv-connect` runs (exception E2 in `docs/agents/skill-exceptions.md`), and git keeps the folders because they are not empty.
+List what you will write: each file under `templates/`, at the same relative path in the current folder. For an existing project, mark each file that already exists as **kept**: it is not overwritten. Overwrite a file only when the user explicitly accepts overwriting that exact file. `solutions/README.md` and `scripts/README.md` are written for an empty folder only; with `src/PowerPlatform/` from step 6 they lay the workspace out before `dv-connect` runs, so it does not create a root `plugins/` folder, and git keeps the folders because they are not empty.
 
 Ask for the go-ahead **once**, with the resolved values, the file list and, for an empty folder, the starting code of step 6. Then, for each file:
 
@@ -91,7 +91,7 @@ The project's own instruction files may not point the agent at `docs/agents/deve
 
 ### When `.claude/settings.json` was kept
 
-Merge the template's rules into it: add each `deny`, `ask` and `allow` rule it lacks, keep every rule and setting the project already has, and remove nothing. A project rule that allows what the harness denies is a conflict: report it, do not resolve it.
+Merge the template's rules into it: add each `ask` and `allow` rule it lacks, keep every rule and setting the project already has, and remove nothing. A project rule that allows what the harness asks about is a conflict: report it, do not resolve it.
 
 Show the user every diff to an existing file before writing it. If an existing file contradicts a harness rule, report the conflict instead of resolving it silently.
 
@@ -134,5 +134,5 @@ State what was written, what was kept, what was reconciled, the template changes
 1. **Publisher** — if it does not exist in DEV yet, a human creates it with unique name and prefix as resolved.
 2. **Core solution** — if it is not `none` and does not exist in DEV yet, a human creates it under that publisher.
 3. **Recommended upgrades** — for an existing project, the differences reconciled in step 5, as the team's upgrade backlog.
-4. **Workspace trust** — the rules in `.claude/settings.json` that allow read-only checks apply only after each developer accepts Claude Code's trust prompt for the repository; the rules that deny irreversible operations apply from the start.
+4. **Workspace trust** — the rules in `.claude/settings.json` that allow the agent's work apply only after each developer accepts Claude Code's trust prompt for the repository; until then every command asks.
 5. Read `docs/agents/development-standards.md` before the first change.

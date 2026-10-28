@@ -72,10 +72,6 @@ Run the approved ones in order:
 
 Report each command's outcome as it happened, failures included, with the output that explains them.
 
-## 3. Exceptions
-
-When the current folder holds `docs/agents/skill-exceptions.md`: for each exception there, find the installed skill it names and check that its quoted rule still appears in it. An exception whose skill is not installed (Ponytail, a recommendation the user may decline) is not checked: report it as not applicable. A quote that no longer appears is **stale**: the official rule changed. Report it as a bug in this harness, not in the user's machine; until the entry is updated, the official skill applies.
-
-## 4. Close
+## 3. Close
 
 Inspect again what the approved proposals changed. The skill is done when nothing is proposed, or when every proposal left is one the user declined in this conversation. Close with a short summary: what changed, what the user declined or is still pending, and what stays unverified on this machine.
