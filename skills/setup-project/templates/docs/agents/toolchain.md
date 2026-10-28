@@ -14,6 +14,7 @@ Tool availability belongs to the machine, not to the repository. Check what is a
 | Node.js | Testing and linting web resources and PCF controls; the official skills' hooks and MCP servers |
 | Power Platform CLI (`pac`) | Code generation, solution operations, environment access |
 | Python | The Dataverse skills' scripts (`scripts/auth.py`) and Python SDK |
+| OpenSpec CLI (`openspec`) | The spec workflow: `/opsx` commands, `openspec update` to refresh the generated skills |
 | Azure CLI (`az`) | The model-apps and power-automate skills; a token source for the Dataverse skills' Python SDK |
 
 The Dataverse MCP server is often restricted at tenant level. Without it, the Dataverse skills reach DEV through their Python SDK, and `scripts/auth.py` can take its token from a signed-in `az` session in the project's tenant (`connections.dataverse.tenantId`): `az account show` says which tenant, and the user signs in with `az login --tenant <tenantId>`. Where the installed skills offer it, `python scripts/auth.py --diagnose` shows which credential source the next call will use, without prompting.

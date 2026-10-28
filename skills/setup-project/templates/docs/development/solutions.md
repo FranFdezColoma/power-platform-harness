@@ -29,6 +29,15 @@ Before writing any code or touching any component, settle where the work lives. 
 - **Current branch is the trunk** (`main`, `master`, or the repository's default branch) — it has no feature solution. If the core solution exists, say that the change lands in the core solution alone, and continue. If the core solution is `none`, there is no solution to put a component in: ask for a new branch instead.
 - **New branch** — check and create the branch, then its feature solution with `dv-solution`, below. Never skip the question because the intent seems obvious.
 
+### An OpenSpec change
+
+An OpenSpec change does not ask the question above: it always gets a new branch, and its short description is the change name, so the change, the branch and the solution share one name.
+
+- **At /opsx:propose**, before any artifact is written: ask the type, then run check 1 below and create the branch. The artifacts and `approval.md` are committed on it.
+- **At /opsx:apply**, after `approval.md` shows both gates `Approved` and before the first task: run checks 2 to 4 and create the feature solution, as below. A change that creates or modifies no Dataverse component needs none.
+
+A change whose proposal is rejected leaves a branch and no solution in DEV.
+
 ### Names
 
 Both names come from one answer, so the branch and the solution can never drift apart:
