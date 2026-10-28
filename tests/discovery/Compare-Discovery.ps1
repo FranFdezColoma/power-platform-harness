@@ -39,13 +39,14 @@ $goldenRoot = if ($Local) { Join-Path $PSScriptRoot '.local' } else { Join-Path 
 # Which top-level sections each script reports. A section several scripts report is compared
 # field by field: each script must agree with the golden file on every field it emits.
 $scripts = @(
-    @{ Path = 'skills/setup-tools/scripts/check-tools.ps1'; Sections = @('tooling', 'toolchain', 'skillExceptions') }
+    # -Offline: upstream plugin versions and skill hashes change without any change here.
+    @{ Path = 'skills/setup-tools/scripts/check-tools.ps1'; Sections = @('tooling', 'toolchain', 'pac', 'agents', 'plugins', 'dataverseSkills', 'telemetry', 'skillExceptions', 'proposals'); Arguments = @('-Offline') }
     @{ Path = 'skills/connect/scripts/check-connections.ps1'; Sections = @('environment', 'featureSolutionsInEnvironment'); EnvironmentOnly = $true }
     @{ Path = 'skills/setup-project/scripts/discover.ps1'; Sections = @('repository', 'dotnet', 'node', 'solutions', 'pcfControls', 'environment', 'featureSolutionsInEnvironment', 'standards', 'prefixEvidence', 'proposedValues', 'recommendation', 'notes'); TakesPath = $true }
 )
 
 # Sections that describe the machine running the script, not the repository it inspects.
-$machineSections = @('tooling', 'toolchain', 'skillExceptions')
+$machineSections = @('tooling', 'toolchain', 'pac', 'agents', 'plugins', 'dataverseSkills', 'telemetry', 'skillExceptions', 'proposals')
 
 function Get-NormalizedJson {
     param([string]$Text, [string]$FixturePath)
@@ -73,6 +74,7 @@ function Invoke-Discovery {
 
     $arguments = @('-NoProfile', '-File', (Join-Path $repoRoot $Script.Path))
     if ($Script.TakesPath) { $arguments += @('-Path', $FixturePath) }
+    if ($Script.Arguments) { $arguments += $Script.Arguments }
     if (-not $Local -and -not $Script.EnvironmentOnly) { $arguments += '-SkipEnvironment' }
     $output = & pwsh @arguments
     if ($LASTEXITCODE -ne 0) { throw "$($Script.Path) failed on $FixturePath with exit code $LASTEXITCODE." }

@@ -260,7 +260,8 @@ function Get-ToolReport {
     # more than the exit code. Only report a note when nothing recognisable came back.
     $match = [regex]::Match($output, '(\d+\.\d+[\w.+-]*)')
     if ($match.Success) {
-        $report['version'] = $match.Value
+        # A sentence-final period is no part of the version: "GitHub Copilot CLI 1.0.101."
+        $report['version'] = $match.Value.TrimEnd('.')
     }
     elseif ($run.Error) {
         $report['note'] = $run.Error
@@ -309,7 +310,8 @@ function ConvertTo-ComparableVersion {
 }
 
 function Get-VersionStatus {
-    param([bool]$Present, [string]$Version, [string]$Minimum, [string]$Preferred)
+    # -MinimumExclusive: the minimum is documented as "above", so the minimum itself is too old.
+    param([bool]$Present, [string]$Version, [string]$Minimum, [string]$Preferred, [switch]$MinimumExclusive)
 
     if (-not $Present) { return 'missing' }
     if (-not $Minimum -and -not $Preferred) { return 'ok' }
@@ -317,7 +319,10 @@ function Get-VersionStatus {
     $actual = ConvertTo-ComparableVersion -Text $Version
     if (-not $actual) { return 'unknown' }
 
-    if ($Minimum -and $actual -lt (ConvertTo-ComparableVersion -Text $Minimum)) { return 'below-minimum' }
+    if ($Minimum) {
+        $minimumVersion = ConvertTo-ComparableVersion -Text $Minimum
+        if ($actual -lt $minimumVersion -or ($MinimumExclusive -and $actual -eq $minimumVersion)) { return 'below-minimum' }
+    }
     if ($Preferred -and $actual -lt (ConvertTo-ComparableVersion -Text $Preferred)) { return 'below-preferred' }
     return 'ok'
 }

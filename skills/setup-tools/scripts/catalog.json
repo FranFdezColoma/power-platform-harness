@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
-  "description": "The tools a developer machine needs for the harness and the official skills, with the minimum and preferred version of each and where that version is stated. check-tools.ps1 reports the machine against this list. assertedIn/assertedText are relative to the setup-project skill: tests/Test-Repository.ps1 fails when the quoted text is no longer in that file.",
-  "maintenance": "Changing a version in skills/setup-project/templates/docs/agents/toolchain.md means updating the matching entry here in the same commit.",
+  "schemaVersion": 2,
+  "description": "What a developer machine needs for the harness and the official skills: the tools with the minimum and preferred version of each and where that minimum comes from, the per-repository tools, the official skills and agent plugins, and the agents that install plugins. check-tools.ps1 reports the machine against this list and derives its proposals from it. assertedIn/assertedText are relative to the setup-project skill: tests/Test-Repository.ps1 fails when the quoted text is no longer in that file.",
+  "maintenance": "Changing a version in skills/setup-project/templates/docs/agents/toolchain.md means updating the matching entry here in the same commit. minimumSource is documented (an official skill states it; documented quotes where) or harness-policy (a stable, non-obsolete release); a tool with neither has no minimum.",
   "assertions": [
     {
       "id": "machine.powershell",
@@ -10,6 +10,9 @@
       "tool": "powershell",
       "tier": "required",
       "minimum": "5.1",
+      "minimumExclusive": false,
+      "minimumSource": "harness-policy",
+      "documented": [],
       "preferred": "7",
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
@@ -24,6 +27,9 @@
       "tool": "git",
       "tier": "required",
       "minimum": null,
+      "minimumExclusive": false,
+      "minimumSource": null,
+      "documented": [],
       "preferred": null,
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
@@ -38,12 +44,17 @@
       "tool": "dotnet",
       "tier": "required",
       "minimum": "8",
+      "minimumExclusive": false,
+      "minimumSource": "harness-policy",
+      "documented": [
+        { "by": "canvas-apps", "minimum": "10", "text": "The [.NET 10 SDK]", "reference": "microsoft/power-platform-skills plugins/canvas-apps/README.md" }
+      ],
       "preferred": "10",
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| .NET SDK | 8 | 10 |",
       "install": "winget install --id Microsoft.DotNet.SDK.10 --source winget",
-      "guidance": "Builds and tests plugins and Custom APIs. The SDK on the machine is independent of the framework the plugins target. The minimum is harness policy: a stable, non-obsolete release."
+      "guidance": "Builds and tests plugins and Custom APIs. The SDK on the machine is independent of the framework the plugins target. The minimum is harness policy: a stable, non-obsolete release. canvas-apps, an optional plugin, needs the .NET 10 SDK."
     },
     {
       "id": "machine.node",
@@ -52,12 +63,19 @@
       "tool": "node",
       "tier": "required",
       "minimum": "22.13",
+      "minimumExclusive": false,
+      "minimumSource": "harness-policy",
+      "documented": [
+        { "by": "power-automate", "minimum": "18", "text": "It needs only Node.js 18+", "reference": "microsoft/power-platform-skills plugins/power-automate/README.md" },
+        { "by": "pcf", "minimum": "20", "text": "Requires Node.js 20+", "reference": "microsoft/power-platform-skills plugins/pcf/.claude-plugin/plugin.json" },
+        { "by": "code-apps-preview", "minimum": "22", "text": "Node.js v22+", "reference": "microsoft/power-platform-skills plugins/code-apps/README.md" }
+      ],
       "preferred": "24",
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| Node.js | 22.13 | 24 |",
       "install": "winget install --id OpenJS.NodeJS.LTS --source winget",
-      "guidance": "Tests and lints web resources and PCF controls, and runs the official skills' hooks and MCP servers. The minimum is harness policy: the pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
+      "guidance": "Tests and lints web resources and PCF controls, and runs the official skills' hooks and MCP servers. The minimum is harness policy, above every documented one: the pinned ESLint 10.12.0 accepts Node ^20.19.0 || ^22.13.0 || >=24, and Vitest 5.0.1 accepts ^22.12.0 || ^24.0.0 || >=26.0.0. Together: Node 22.13 or later on the 22 line, or 24, or 26 and later. Vitest rejects Node 20 and the odd-numbered 23 and 25."
     },
     {
       "id": "machine.pac",
@@ -66,12 +84,19 @@
       "tool": "pac",
       "tier": "required",
       "minimum": "2.10.0",
+      "minimumExclusive": true,
+      "minimumSource": "documented",
+      "documented": [
+        { "by": "model-apps", "minimum": "2.10.0", "text": "Requires PAC CLI > 2.10.0", "reference": "microsoft/power-platform-skills plugins/model-apps/.claude-plugin/plugin.json" }
+      ],
       "preferred": null,
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| Power Platform CLI (`pac`), the Windows installer | above 2.10.0 | latest |",
       "install": "winget install --id Microsoft.PowerAppsCLI --source winget",
-      "guidance": "Generates PCF projects and early-bound classes, and reads the environment. The minimum is documented by model-apps (\"Requires PAC CLI > 2.10.0\"). Install the Windows installer, not the .NET global tool: it keeps older versions side by side and updates with pac install latest. It also needs an authentication profile that reaches DEV, which dv-connect creates."
+      "update": "pac install latest",
+      "removeDotnetTool": "dotnet tool uninstall --global Microsoft.PowerApps.CLI.Tool",
+      "guidance": "Generates PCF projects and early-bound classes, and reads the environment. The minimum is documented by model-apps, and it is exclusive: 2.10.0 itself does not meet it. Install the Windows installer, not the .NET global tool: it keeps older versions side by side, updates with pac install latest and switches with pac use. It also needs an authentication profile that reaches DEV, which dv-connect creates."
     },
     {
       "id": "machine.python",
@@ -80,6 +105,9 @@
       "tool": "python",
       "tier": "required",
       "minimum": null,
+      "minimumExclusive": false,
+      "minimumSource": null,
+      "documented": [],
       "preferred": null,
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
@@ -94,12 +122,136 @@
       "tool": "az",
       "tier": "required",
       "minimum": null,
+      "minimumExclusive": false,
+      "minimumSource": null,
+      "documented": [
+        { "by": "model-apps", "minimum": null, "text": "and Azure CLI (`az`)", "reference": "microsoft/power-platform-skills plugins/model-apps/.claude-plugin/plugin.json" },
+        { "by": "power-automate", "minimum": null, "text": "Auth uses Azure CLI (`az login`)", "reference": "microsoft/power-platform-skills plugins/power-automate/README.md" }
+      ],
       "preferred": null,
       "assertedIn": "templates/docs/agents/toolchain.md",
       "targetFile": "docs/agents/toolchain.md",
       "assertedText": "| Azure CLI (`az`) | any | latest |",
       "install": "winget install --id Microsoft.AzureCLI --source winget",
-      "guidance": "Required by the model-apps and power-automate skills."
+      "guidance": "Required by the model-apps and power-automate skills. They state no minimum version."
+    },
+    {
+      "id": "repository.gh",
+      "kind": "repository",
+      "topic": "GitHub CLI (gh)",
+      "tool": "gh",
+      "provider": "github",
+      "requires": null,
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| GitHub CLI (`gh`) | The repository is on GitHub |",
+      "install": "winget install --id GitHub.cli --source winget",
+      "guidance": "Pull requests and repository operations for a repository on GitHub."
+    },
+    {
+      "id": "repository.azure-devops",
+      "kind": "repository",
+      "topic": "az azure-devops extension",
+      "tool": "azureDevOpsExtension",
+      "provider": "azure-devops",
+      "requires": "az",
+      "assertedIn": "templates/docs/agents/toolchain.md",
+      "targetFile": "docs/agents/toolchain.md",
+      "assertedText": "| `az` `azure-devops` extension | The repository is on Azure DevOps |",
+      "install": "az extension add --name azure-devops",
+      "guidance": "az repos and az devops for a repository on Azure DevOps. Detected with az extension list: az devops itself offers to install the extension interactively, so this check never calls it."
+    }
+  ],
+  "recommended": [
+    {
+      "id": "recommended.playwright-cli",
+      "topic": "playwright-cli",
+      "tool": "playwrightCli",
+      "install": "npm install -g @playwright/cli@latest",
+      "guidance": "Manual checks of PCF controls and web resources in their DEV forms. It loads no tool schemas or accessibility trees into the agent's context."
+    }
+  ],
+  "skillPackages": [
+    {
+      "id": "skills.dataverse",
+      "topic": "Dataverse skills",
+      "source": "microsoft/Dataverse-skills",
+      "pluginName": "dataverse",
+      "install": "npx skills add microsoft/Dataverse-skills -s \"*\" -g",
+      "update": "npx skills update {skills} -g -y",
+      "guidance": "Mandatory. Installed once per user with npx skills, which every Agent Skills agent reads from ~/.agents/skills. A copy installed as an agent plugin is accepted with a warning; a second copy next to the npx one is a duplicate."
+    }
+  ],
+  "plugins": [
+    {
+      "id": "plugin.model-apps",
+      "name": "model-apps",
+      "marketplace": "power-platform-skills",
+      "marketplaceSource": "microsoft/power-platform-skills",
+      "manifest": "plugins/model-apps/.claude-plugin/plugin.json",
+      "telemetry": true
+    },
+    {
+      "id": "plugin.power-automate",
+      "name": "power-automate",
+      "marketplace": "power-platform-skills",
+      "marketplaceSource": "microsoft/power-platform-skills",
+      "manifest": "plugins/power-automate/.claude-plugin/plugin.json",
+      "telemetry": true
+    },
+    {
+      "id": "plugin.ponytail",
+      "name": "ponytail",
+      "marketplace": "ponytail",
+      "marketplaceSource": "DietrichGebert/ponytail",
+      "manifest": ".claude-plugin/plugin.json",
+      "telemetry": false
+    }
+  ],
+  "agents": [
+    {
+      "id": "claude",
+      "label": "Claude Code",
+      "command": "claude",
+      "plugins": "verified",
+      "install": "claude plugin install {plugin}@{marketplace}",
+      "update": "claude plugin update {plugin}@{marketplace}",
+      "uninstall": "claude plugin uninstall {plugin}@{marketplace}",
+      "addMarketplace": "claude plugin marketplace add {source}",
+      "note": "A plugin update applies after Claude Code restarts."
+    },
+    {
+      "id": "copilot",
+      "label": "GitHub Copilot CLI",
+      "command": "copilot",
+      "plugins": "verified",
+      "install": "copilot plugin install {plugin}@{marketplace}",
+      "update": "copilot plugin update {plugin}@{marketplace}",
+      "uninstall": "copilot plugin uninstall {plugin}@{marketplace}",
+      "addMarketplace": "copilot plugin marketplace add {source}",
+      "note": null
+    },
+    {
+      "id": "codex",
+      "label": "Codex CLI",
+      "command": "codex",
+      "plugins": "unverified",
+      "install": "codex plugin add {plugin}@{marketplace}",
+      "update": null,
+      "uninstall": null,
+      "addMarketplace": null,
+      "note": "Not exercised by the harness yet. Plugin hooks run only once the user trusts them in /hooks, and the Codex IDE extension has no plugin support."
+    },
+    {
+      "id": "vscode",
+      "label": "VS Code",
+      "command": "code",
+      "plugins": "unverified",
+      "install": null,
+      "update": null,
+      "uninstall": null,
+      "addMarketplace": null,
+      "note": "Not exercised by the harness yet. Whether VS Code agent mode loads the plugins Copilot CLI installed is unverified."
     }
   ]
 }
