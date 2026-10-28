@@ -18,9 +18,12 @@
       "presentFiles": [],
       "missingFiles": [
         ".gitignore",
+        "AGENTS.md",
         "CLAUDE.md",
         ".claude/settings.json",
+        ".power-platform/project.json",
         "docs/agents/development-standards.md",
+        "docs/agents/skill-exceptions.md",
         "docs/agents/toolchain.md",
         "docs/development/csharp-plugins.md",
         "docs/development/custom-apis.md",

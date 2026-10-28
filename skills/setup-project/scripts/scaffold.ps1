@@ -29,18 +29,19 @@
 .EXAMPLE
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
         -PublisherPrefix nwc -CoreSolution NorthwindCore
-        -ProjectDescription 'Customer Service implementation for Northwind.' -DryRun
+        -ProjectDescription 'Customer Service implementation for Northwind.' -RepositoryProvider github -DryRun
 
 .EXAMPLE
     # No core solution: every component lives in the feature solution of its branch.
     ./scripts/scaffold.ps1 -ProjectName Northwind -PublisherUniqueName NorthwindConsulting
         -PublisherPrefix nwc
-        -ProjectDescription 'Customer Service implementation for Northwind.' -TargetPath C:\repos\northwind
+        -ProjectDescription 'Customer Service implementation for Northwind.' -RepositoryProvider azure-devops
+        -TargetPath C:\repos\northwind
 
 .EXAMPLE
     # Adopt the harness into an existing repository: add the missing docs, touch nothing else.
     ./scripts/scaffold.ps1 -ProjectName Acme -PublisherUniqueName AcmeConsulting -PublisherPrefix acme
-        -CoreSolution AcmeCore -ProjectDescription 'Customer Service for Acme.'
+        -CoreSolution AcmeCore -ProjectDescription 'Customer Service for Acme.' -RepositoryProvider github
         -TargetPath C:\repos\acme -SkipExisting -SkipLayout -Json
 #>
 [CmdletBinding()]
@@ -56,6 +57,11 @@ param(
 
     [Parameter(Mandatory = $true)]
     [string]$ProjectDescription,
+
+    # Where the repository is hosted: github or azure-devops. Decides which CLI the instructions
+    # name for repository operations, and is recorded in .power-platform/project.json.
+    [Parameter(Mandatory = $true)]
+    [string]$RepositoryProvider,
 
     # Unique name of the core solution in DEV, or 'none' when the project has no core solution and
     # every component lives in the feature solution of the branch that created it.
@@ -145,7 +151,7 @@ Assert-Value -Name 'ProjectName' -Value $ProjectName -Pattern '^[A-Za-z][A-Za-z0
     -Requirement 'It is the root .NET namespace and names the JavaScript form API namespace and the WebResources project, so it must start with a letter and contain letters and digits only.'
 
 Assert-Value -Name 'PublisherUniqueName' -Value $PublisherUniqueName -Pattern '^[A-Za-z_][A-Za-z0-9_]*$' `
-    -Requirement 'Use the publisher unique name, not its display name: pac solution init needs it to create feature solutions. Letters, digits and underscores only.'
+    -Requirement 'Use the publisher unique name, not its display name: feature solutions are created under it. Letters, digits and underscores only.'
 
 Assert-Value -Name 'PublisherPrefix' -Value $PublisherPrefix -Pattern '^[a-z][a-z0-9]{1,7}$' `
     -Requirement 'A Dataverse customization prefix is 2 to 8 lowercase alphanumeric characters and starts with a letter.'
@@ -159,7 +165,13 @@ Assert-Value -Name 'CoreSolution' -Value $CoreSolution -Pattern '^[A-Za-z_][A-Za
     -Requirement "Use the core solution unique name, not its display name: no spaces or punctuation. Use 'none' when the project has no core solution."
 
 Assert-Value -Name 'ProjectDescription' -Value $ProjectDescription `
-    -Requirement 'One or two sentences describing what the project delivers. It becomes the Description section of CLAUDE.md.'
+    -Requirement 'One or two sentences describing what the project delivers. It becomes the Description section of AGENTS.md.'
+
+Assert-Value -Name 'RepositoryProvider' -Value $RepositoryProvider -Pattern '^(github|azure-devops)$' `
+    -Requirement "Use 'github' or 'azure-devops', in lowercase."
+
+# The CLI the instructions name for repository operations follows from the provider.
+$repositoryCli = if ($RepositoryProvider -eq 'github') { 'gh' } else { 'az repos' }
 
 $templatesRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'templates'
 if (-not (Test-Path -LiteralPath $templatesRoot)) {
@@ -181,6 +193,8 @@ $tokens = [ordered]@{
     '{{publisher_prefix}}'      = $PublisherPrefix
     '{{core_solution}}'         = $CoreSolution
     '{{project_description}}'   = $ProjectDescription
+    '{{repository_provider}}'   = $RepositoryProvider
+    '{{repository_cli}}'        = $repositoryCli
 }
 
 # Build and restore output is never template content. Opening or building a template project in
@@ -291,6 +305,7 @@ function Write-Report {
                 publisherPrefix     = $PublisherPrefix
                 coreSolution        = $CoreSolution
                 projectDescription  = $ProjectDescription
+                repositoryProvider  = $RepositoryProvider
             }
             mode        = [ordered]@{
                 dryRun                  = [bool]$DryRun
@@ -430,4 +445,5 @@ if (-not $Json) {
     Write-Host "Project:   $ProjectName" -ForegroundColor Cyan
     Write-Host "Publisher: $PublisherUniqueName ($PublisherPrefix)" -ForegroundColor Cyan
     Write-Host "Core:      $CoreSolution" -ForegroundColor Cyan
+    Write-Host "Repository: $RepositoryProvider ($repositoryCli)" -ForegroundColor Cyan
 }

@@ -2,7 +2,7 @@
   "repository": {
     "path": "<fixture>",
     "classification": "existing",
-    "fileCount": 26,
+    "fileCount": 29,
     "walkTruncated": false,
     "prunedFolders": [],
     "git": {
@@ -20,9 +20,12 @@
       ],
       "presentFiles": [
         ".gitignore",
+        "AGENTS.md",
         "CLAUDE.md",
         ".claude/settings.json",
+        ".power-platform/project.json",
         "docs/agents/development-standards.md",
+        "docs/agents/skill-exceptions.md",
         "docs/agents/toolchain.md",
         "docs/development/csharp-plugins.md",
         "docs/development/custom-apis.md",
@@ -44,7 +47,7 @@
     },
     "agentDocs": {
       "claudeMd": true,
-      "agentsMd": false,
+      "agentsMd": true,
       "copilotMd": false,
       "cursorRules": false,
       "claudeMdFiles": [
@@ -52,6 +55,7 @@
       ],
       "docsAgents": [
         "docs/agents/development-standards.md",
+        "docs/agents/skill-exceptions.md",
         "docs/agents/toolchain.md"
       ],
       "docsDevelopment": [

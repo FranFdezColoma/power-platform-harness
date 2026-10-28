@@ -15,12 +15,16 @@
     "harness": {
       "installed": false,
       "markers": [],
-      "presentFiles": [],
+      "presentFiles": [
+        "AGENTS.md"
+      ],
       "missingFiles": [
         ".gitignore",
         "CLAUDE.md",
         ".claude/settings.json",
+        ".power-platform/project.json",
         "docs/agents/development-standards.md",
+        "docs/agents/skill-exceptions.md",
         "docs/agents/toolchain.md",
         "docs/development/csharp-plugins.md",
         "docs/development/custom-apis.md",
@@ -452,7 +456,8 @@
     ],
     "deviationCount": 3,
     "warnings": [
-      "The existing C# projects use the root namespace Acme.Crm, but the harness uses the project name as the root namespace and a project name cannot contain dots. The generated docs will say Acme.<Entity> and Acme.Common: reconcile them to Acme.Crm after scaffolding."
+      "The existing C# projects use the root namespace Acme.Crm, but the harness uses the project name as the root namespace and a project name cannot contain dots. The generated docs will say Acme.<Entity> and Acme.Common: reconcile them to Acme.Crm after scaffolding.",
+      "The harness is partially installed. Only the missing files will be written; compare the present ones against the templates before assuming they are current."
     ]
   },
   "notes": []

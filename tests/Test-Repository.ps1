@@ -7,6 +7,8 @@
       Each skill carries its own copy so it works when installed on its own; they must not drift.
     - Every entry in setup-tools' catalog.json still quotes text that is in the file it points at,
       so a version changed in toolchain.md without the catalog fails here instead of silently.
+    - Every exception in setup-tools' skill-exceptions.json is quoted, in double quotes, by the
+      exceptions document the templates ship, so the check and the document cannot drift apart.
     - Every PowerShell script parses, and uses none of the syntax Windows PowerShell 5.1 rejects.
 
     Read-only. Exits 1 and lists every failure, or prints a one-line summary.
@@ -61,6 +63,21 @@ foreach ($entry in $catalog.assertions) {
     }
     elseif (-not ([System.IO.File]::ReadAllText($file)).Contains($entry.assertedText)) {
         $failures.Add("catalog.json $($entry.id) quotes text that is no longer in $($entry.assertedIn): $($entry.assertedText)")
+    }
+}
+
+# ---- the exceptions document quotes what skill-exceptions.json checks ---------------------
+
+$exceptionsPath = Join-Path $skillsRoot 'setup-tools/scripts/skill-exceptions.json'
+$exceptions = [System.IO.File]::ReadAllText($exceptionsPath) | ConvertFrom-Json
+foreach ($entry in $exceptions.exceptions) {
+    $checks++
+    $file = Join-Path $setupProjectRoot $entry.documentedIn
+    if (-not (Test-Path -LiteralPath $file)) {
+        $failures.Add("skill-exceptions.json $($entry.id) points at $($entry.documentedIn), which does not exist under skills/setup-project.")
+    }
+    elseif (-not ([System.IO.File]::ReadAllText($file)).Contains("`"$($entry.quote)`"")) {
+        $failures.Add("skill-exceptions.json $($entry.id) quotes text that $($entry.documentedIn) no longer quotes: $($entry.quote)")
     }
 }
 

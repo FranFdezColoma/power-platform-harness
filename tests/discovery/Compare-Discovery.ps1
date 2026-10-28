@@ -39,13 +39,13 @@ $goldenRoot = if ($Local) { Join-Path $PSScriptRoot '.local' } else { Join-Path 
 # Which top-level sections each script reports. A section several scripts report is compared
 # field by field: each script must agree with the golden file on every field it emits.
 $scripts = @(
-    @{ Path = 'skills/setup-tools/scripts/check-tools.ps1'; Sections = @('tooling', 'toolchain') }
+    @{ Path = 'skills/setup-tools/scripts/check-tools.ps1'; Sections = @('tooling', 'toolchain', 'skillExceptions') }
     @{ Path = 'skills/connect/scripts/check-connections.ps1'; Sections = @('environment', 'featureSolutionsInEnvironment'); EnvironmentOnly = $true }
     @{ Path = 'skills/setup-project/scripts/discover.ps1'; Sections = @('repository', 'dotnet', 'node', 'solutions', 'pcfControls', 'environment', 'featureSolutionsInEnvironment', 'standards', 'prefixEvidence', 'proposedValues', 'recommendation', 'notes'); TakesPath = $true }
 )
 
 # Sections that describe the machine running the script, not the repository it inspects.
-$machineSections = @('tooling', 'toolchain')
+$machineSections = @('tooling', 'toolchain', 'skillExceptions')
 
 function Get-NormalizedJson {
     param([string]$Text, [string]$FixturePath)
@@ -108,7 +108,7 @@ try {
     $scaffolded = Join-Path $scratch 'scaffolded'
     $scaffold = Join-Path $repoRoot 'skills/setup-project/scripts/scaffold.ps1'
     & pwsh -NoProfile -File $scaffold -ProjectName Northwind -PublisherUniqueName NorthwindConsulting `
-        -PublisherPrefix nwc -CoreSolution NorthwindCore -ProjectDescription 'Test scaffold.' -TargetPath $scaffolded -Json | Out-Null
+        -PublisherPrefix nwc -CoreSolution NorthwindCore -ProjectDescription 'Test scaffold.' -RepositoryProvider github -TargetPath $scaffolded -Json | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "scaffold.ps1 failed with exit code $LASTEXITCODE." }
     $fixtures['scaffolded'] = $scaffolded
 
