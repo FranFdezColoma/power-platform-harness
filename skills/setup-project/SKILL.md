@@ -1,7 +1,7 @@
 ---
 name: setup-project
 description: Install the Power Platform / Dynamics 365 CE harness files in a repository — AGENTS.md, CLAUDE.md, .power-platform/project.json, permission rules, the development standards per technology and the per-branch feature solution workflow — and, in an empty folder, the starting code: PowerPlatform.sln, the shared Common library and the WebResources project. Works on an empty folder; on a project that already has the harness, where it proposes what the templates changed since; and on an existing project, where it reads the publisher, prefix, core solution and stack from the repository and the environment instead of asking, and adapts the standards to the versions the project already uses. Use when set-power-platform reaches its project step, to adopt the harness into a repository, or to bring a project's harness files up to date.
-allowed-tools: Bash(git init *), Bash(git status*), Bash(git remote *), Bash(git log *), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Bash(pac auth list*), Bash(pac org who *), Bash(pac solution list *), Bash(pac org fetch *), Bash(dotnet --list-sdks), Bash(dotnet build *), Bash(npm test*), Bash(npm run lint*), PowerShell(git init *), PowerShell(git status*), PowerShell(git remote *), PowerShell(git log *), PowerShell(git switch -c *), PowerShell(git add *), PowerShell(git commit *), PowerShell(git diff*), PowerShell(pac auth list*), PowerShell(pac org who *), PowerShell(pac solution list *), PowerShell(pac org fetch *), PowerShell(dotnet --list-sdks), PowerShell(dotnet build *), PowerShell(npm test*), PowerShell(npm run lint*), Read, Write, Edit, Glob, Grep, AskUserQuestion
+allowed-tools: Bash(git init *), Bash(git status*), Bash(git remote *), Bash(git log *), Bash(git switch -c *), Bash(git add *), Bash(git commit *), Bash(git diff*), Bash(pac auth list*), Bash(pac org who *), Bash(pac solution list *), Bash(pac org fetch *), Bash(dotnet --list-sdks), Bash(dotnet build *), Bash(npm test*), Bash(powershell -NoProfile -File *new-folders.ps1 *), Bash(npm run lint*), PowerShell(git init *), PowerShell(git status*), PowerShell(git remote *), PowerShell(git log *), PowerShell(git switch -c *), PowerShell(git add *), PowerShell(git commit *), PowerShell(git diff*), PowerShell(pac auth list*), PowerShell(pac org who *), PowerShell(pac solution list *), PowerShell(pac org fetch *), PowerShell(dotnet --list-sdks), PowerShell(dotnet build *), PowerShell(npm test*), PowerShell(npm run lint*), PowerShell(*new-folders.ps1 *), Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Set up the project
@@ -110,7 +110,9 @@ When the project's root namespace is dotted (`Acme.Crm`), replace the project na
 
 Empty folder only. In an existing project, the standards say when each project is created: the first change that needs it.
 
-Create what `docs/development/csharp-plugins.md` and `docs/development/webresources-project.md` — the generated ones, in the current folder — say the first plugin and the first web resource create, and follow them exactly:
+First create the folder tree with the script, never by hand: `scripts/new-folders.ps1`, next to this file, run with `-ProjectName <project name> -PublisherPrefix <prefix> -TargetPath <current folder>` (add `-DryRun` to preview). It creates `src/PowerPlatform/Plugins`, `src/PowerPlatform/CustomAPIs`, the WebResources project's `<prefix>_/src/{js,html,css,icons}` and `docs/adr`, each empty one with a `.gitkeep`, and never overwrites anything. It is the only script in this harness: a folder tree is mechanical and must come out the same every time.
+
+Then create what `docs/development/csharp-plugins.md` and `docs/development/webresources-project.md` — the generated ones, in the current folder — say the first plugin and the first web resource create, and follow them exactly, inside those folders:
 
 - `src/PowerPlatform/PowerPlatform.sln`, with its solution folders.
 - `src/PowerPlatform/Plugins/<project name>.Common/`: its `.csproj` and the `PluginBase.cs` taken from `pac plugin init`.
@@ -129,7 +131,7 @@ Creating a publisher or a solution is irreversible. Never do it on the user's be
 
 ## 8. Report
 
-State what was written, what was kept, what was reconciled, the template changes applied or declined, the code created with the versions pinned and whether it builds, and what you could not check and why. Then, as a list the user can act on:
+State what was written, what was kept, what was reconciled, the template changes applied or declined, the folders the script created, the code created with the versions pinned and whether it builds, and what you could not check and why. Then, as a list the user can act on:
 
 1. **Publisher** — if it does not exist in DEV yet, a human creates it with unique name and prefix as resolved.
 2. **Core solution** — if it is not `none` and does not exist in DEV yet, a human creates it under that publisher.

@@ -18,11 +18,14 @@ design; read it before changing anything.
 | `skills/set-power-platform/SKILL.md` | The skill users run: runs `setup-tools`, `connect`, `setup-project` and `connect` again, and reports once |
 | `skills/setup-tools/SKILL.md` | The machine: inspects tools, skills and plugins, proposes each install, update or removal |
 | `skills/setup-project/SKILL.md` | The repository: copies the templates, creates a new project's starting code, adapts them to an existing project |
+| `skills/setup-project/scripts/new-folders.ps1` | Creates the folder tree of a new project: `Plugins`, `CustomAPIs`, the WebResources `<prefix>_/src/...` folders, `docs/adr` |
 | `skills/setup-project/templates/` | Content shipped verbatim, tokens replaced, into every project |
 | `skills/connect/SKILL.md` | The sign-ins, and the connections `.power-platform/project.json` expects |
 
-The skills are markdown only: no scripts. The agent running a skill does the inspection itself.
-Do not add a script unless something genuinely cannot be done otherwise, and do not add a
+The skills are markdown; the agent running a skill does the inspection itself. The one exception is
+`skills/setup-project/scripts/new-folders.ps1`, which creates a new project's folder tree (and its
+`.gitkeep` files), because a directory tree is mechanical and must come out the same every time.
+Do not add another script unless something genuinely cannot be done otherwise, and do not add a
 version, minimum or catalog that someone would have to keep current. Every skill is
 self-contained: it reaches only its own folder, so it still works installed on its own.
 

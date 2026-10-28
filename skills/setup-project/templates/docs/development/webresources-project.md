@@ -19,7 +19,7 @@ the project that wraps them for the IDE and the test/lint tooling.
 
 ## Creating it
 
-The first web resource creates this project when it does not exist yet: the `.esproj`, the three files next to it, and its entry in `PowerPlatform.sln` (creating the solution if needed, per `docs/development/csharp-plugins.md`).
+The first web resource creates this project when it does not exist yet: the `.esproj`, the three files next to it, and its entry in `PowerPlatform.sln` (creating the solution if needed, per `docs/development/csharp-plugins.md`). The `{{publisher_prefix}}_/src/{js,html,css,icons}` folders are created with the rest of the folder tree by `setup-project`'s `new-folders.ps1`.
 
 ## Adapting to an existing project
 
