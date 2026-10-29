@@ -54,10 +54,6 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Never query inside a loop when a single filtered query answers the same question.
 - Design within the platform limits: a sandboxed plugin is killed after 2 minutes, so long-running work goes asynchronous; an `ExecuteMultiple` batch holds at most 1000 requests; the service protection limits throttle a user with HTTP 429, so bulk clients honour `Retry-After` instead of retrying immediately.
 
-## Language
-
-- English is mandatory for code. Everything else uses the project language: the artifact language set in `openspec/config.yaml`.
-
 ## Testing
 
 - Production code and the tests it requires are created or updated in the same change.
@@ -73,7 +69,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 
 - Never simulate metadata, tables, columns, relationships, solution components or environment state when a tool can retrieve it. Retrieve it with the official Dataverse skills (`dv-metadata`, `dv-query`, `dv-solution`); `dv-overview` states the same rule.
 - Name the environment before any operation against it (`pac org who --environment <devUrl>`, with the DEV url from `.power-platform/project.json`). Treat any environment you have not verified as production.
-- Write operations are permitted in DEV only, and always into the solution `docs/development/solutions.md` names, with a tool that can perform them: the official skills, `pac`, the Dataverse CLI, the Dataverse MCP server or the Dataverse skills' Python SDK. Without one, prepare the operation and hand it to the developer. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human. This holds whatever the tool: `.claude/settings.json` asks before the MCP server's delete tools and before deleting commands, but nothing stops a Python script, so a script that deletes is handed to the developer, not run.
+- Write operations are permitted in DEV only, and always into the solution `docs/development/solutions.md` names, with a tool that can perform them: the official skills, `pac`, the Dataverse MCP server or the Dataverse skills' Python SDK. Without one, prepare the operation and hand it to the developer. Irreversible operations — deleting a table, column, relationship, record or solution, or changing the data type of a populated column — are prepared by the agent and executed by a human. This holds whatever the tool: `.claude/settings.json` asks before any MCP tool that deletes, removes, cancels or restores and before deleting commands, but nothing stops a Python script, so a script that deletes is handed to the developer, not run.
 
 ## Blocked commands
 

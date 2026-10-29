@@ -12,7 +12,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## Naming
 
 - Schema names are PascalCase with the publisher prefix: `{{publisher_prefix}}_WorkOrderCategory`.
-- Display names are in English; other languages ship as translations. Never hardcode a translated label.
+- Display names are in the environment's base language; other languages ship as translations. Never hardcode a translated label.
 - Name the concept, not the type: `{{publisher_prefix}}_ApprovalDate`, not `{{publisher_prefix}}_Date2`.
 - Every component carries the `{{publisher_prefix}}` prefix. A component created under another publisher is a delivery problem, not a cosmetic one.
 
@@ -43,4 +43,4 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## After the change
 
 - Create every table, column and relationship in the solution `docs/development/solutions.md` names for the current branch.
-- Read the metadata back from the environment with `dv-metadata` and confirm it matches the intent. Never assert from memory what the platform accepted.
+- Read the metadata back from the environment with `dv-metadata` and confirm it matches the intent. Never assert from memory what the platform accepted.

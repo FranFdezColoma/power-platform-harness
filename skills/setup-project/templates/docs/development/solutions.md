@@ -13,7 +13,7 @@ Scope: everything that happens inside DEV — which solution a component goes in
 ## Solutions
 
 - Publisher: unique name `{{publisher_unique_name}}`, customization prefix `{{publisher_prefix}}`, for every component and every solution.
-- Core solution: `{{core_solution}}`. `none` means this project has no core solution, and the rules below that mention it do not apply.
+- Core solution: `identity.coreSolution` in `.power-platform/project.json`. `none` means this project has no core solution, and the rules below that mention it do not apply.
 - **Feature solution**: one per branch, named from it. It records what that piece of work created or touched.
 - Every solution is unmanaged in DEV. Solution unique names carry no publisher prefix.
 
@@ -24,7 +24,7 @@ Before writing any code or touching any component, settle where the work lives. 
 > Do you want to develop this on the current branch `<branch>`, or on a new one?
 
 - **Current branch** — continue. If it has a feature solution, components go into it.
-- **Current branch is the trunk** (`main`, `master`, or the repository's default branch) — it has no feature solution. If the core solution exists, say that the change lands in the core solution alone, and continue. If the core solution is `none`, there is no solution to put a component in: ask for a new branch instead.
+- **Current branch is the trunk** (`main`, `master`, or the repository's default branch) — it has no feature solution. Say where components go, per "Which solution a component goes into" below, and continue.
 - **New branch** — check and create the branch, then its feature solution with `dv-solution`, below. Never skip the question because the intent seems obvious.
 
 ### An OpenSpec change
@@ -32,7 +32,7 @@ Before writing any code or touching any component, settle where the work lives. 
 An OpenSpec change does not ask the question above: it always gets a new branch, and its short description is the change name, so the change, the branch and the solution share one name.
 
 - **At /opsx:propose**, before any artifact is written: ask the type, then run check 1 below and create the branch. The artifacts and `approval.md` are committed on it.
-- **At /opsx:apply**, after `approval.md` shows both gates `Approved` and before the first task: run checks 2 to 4 and create the feature solution, as below. A change that creates or modifies no Dataverse component needs none.
+- **At /opsx:apply**, after `approval.md` shows both gates `Approved` and before the first task: run checks 2 to 4 and create the feature solution, as below.
 
 A change whose proposal is rejected leaves a branch and no solution in DEV.
 
@@ -99,7 +99,7 @@ pac solution add-solution-component --environment <devUrl> --solutionUniqueName 
 The feature solution goes into the repository with the branch, so the review diff shows what the branch touched in DEV:
 
 - Export it with `dv-solution` (export, unpack, delete the zip) into `solutions/<feature solution>/`, and commit the unpacked source on the branch. `solutions/` sits at the repository root, next to `src/`: generated solution source and hand-written code stay apart.
-- The core solution `{{core_solution}}` is exported only from the trunk, as an explicit operation the user asks for. Exporting it from a branch would capture colleagues' unfinished work in the shared DEV.
+- The core solution is exported only from the trunk, as an explicit operation the user asks for. Exporting it from a branch would capture colleagues' unfinished work in the shared DEV.
 - Importing goes to DEV only. Promotion to test or production is a human's or a pipeline's job.
 
 ## After the merge

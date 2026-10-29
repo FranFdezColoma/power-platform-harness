@@ -8,14 +8,10 @@
 
 English is mandatory for code. Everything else uses the project language: the artifact language set in `openspec/config.yaml`.
 
-## Microsoft official skills
-
-Use Microsoft's Dataverse and Power Platform skills when needed to do the work against Dataverse. This repository's standards set the conventions and guidelines for coding.
-
 ## Project context
 
-`.power-platform/project.json` is the source of truth for the project identity and the connections it expects: the DEV environment, the tenant, the repository and its provider. Check a session against it before using it.
+`.power-platform/project.json` is the source of truth for the project identity and the connections it expects: the DEV environment, the tenant, the repository and its provider. Check that the `pac` profile and the `az` session you are about to use reach that environment and tenant.
 
 ## Tool usage
 
-When a task depends on a fact you could check, check it instead of recalling it: skills for specialized domain knowledge, MCP servers for inspection/operations (when the tenant restricts the Dataverse MCP server, the Dataverse skills' Python SDK), `pac` (Power Platform CLI) for platform lifecycle operations, `{{repository_cli}}` for repository operations, `openspec` for the spec workflow, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.
+Never assume a tool is present or absent: check when the task needs it. Microsoft's official Dataverse and Power Platform skills do the work against Dataverse; this repository's standards set the conventions they follow. When a task depends on a fact you could check, check it instead of recalling it: skills for specialized domain knowledge, MCP servers for inspection/operations (when the tenant restricts the Dataverse MCP server, the Dataverse skills' Python SDK), `pac` (Power Platform CLI) for platform lifecycle operations, `{{repository_cli}}` for repository operations, `openspec` for the spec workflow, and official docs or web search for current Microsoft behavior, CLI syntax, SDK versions or platform capabilities.

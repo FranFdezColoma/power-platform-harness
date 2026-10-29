@@ -77,9 +77,10 @@
       "PowerShell(curl *DELETE*)",
       "PowerShell(Invoke-RestMethod *Delete*)",
       "PowerShell(Invoke-WebRequest *Delete*)",
-      "mcp__*__delete_record",
-      "mcp__*__delete_table",
-      "mcp__*__delete_skill"
+      "mcp__*__delete*",
+      "mcp__*__remove*",
+      "mcp__*__cancel*",
+      "mcp__*__restore*"
     ]
   }
 }

@@ -14,7 +14,7 @@ the project that wraps them for the IDE and the test/lint tooling.
 
 - Source lives under `{{publisher_prefix}}_/src/{js,html,css,icons}`, matching the prefix-underscore convention Dataverse expects component names to start with. Form scripts go one folder deeper, per table: `{{publisher_prefix}}_/src/js/<table>/`, per `docs/development/javascript.md`.
 - `eslint.config.mjs` lints deployed files as ES2020 scripts with `Xrm` as a read-only global, and lets only `*.test.js` and the `.mjs` tooling configuration use ES modules. Keep that split: it is what enforces the no-module-syntax rule on deployed files.
-- `package.json`, `vitest.config.mjs` and `eslint.config.mjs` sit next to the `.esproj`, scoped to this project only.
+- `package.json`, `vitest.config.mjs` and `eslint.config.mjs` sit next to the `.esproj`, scoped to this project only. PCF controls live inside it, in `PCFs/<ControlName>/`, as separate projects with their own tooling (`docs/development/pcf.md`): `eslint.config.mjs` and `vitest.config.mjs` ignore `PCFs/**`, and the no-TypeScript, no-framework rule above does not reach them.
 - `package.json` is private and named `{{publisher_prefix}}-webresources`. Its scripts are `test` (`vitest run --passWithNoTests`), `test:watch` (`vitest`) and `lint` (`eslint .`). Its dev dependencies are `eslint`, `@eslint/js`, `vitest`, `@vitest/coverage-v8` and `xrm-mock`, each pinned per `docs/agents/development-standards.md`.
 
 ## Creating it

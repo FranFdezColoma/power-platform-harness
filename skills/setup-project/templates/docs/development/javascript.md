@@ -7,8 +7,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Do not use syntax beyond ES2020 in deployed files.
 - Tests: Vitest with the `node` environment. Form scripts reach the form only through `executionContext`, `formContext` and `Xrm`, which tests mock, so they need no browser DOM.
 - Only a test that genuinely exercises browser APIs (an HTML web resource's own `document`, `localStorage`, `window.location`) runs under `jsdom`, opted into for that file alone with `// @vitest-environment jsdom` on its first line, adding `jsdom` as a pinned dev dependency when the first such test appears.
-- Prefer manual mocks for simple form scenarios. Use `xrm-mock` when manual mocks become impractical.
-- Lint: ESLint (flat config), shared with the PCF projects.
+- Lint: ESLint (flat config).
 - Pin exact versions in `package.json`, per `docs/agents/development-standards.md`.
 
 ## Structure
@@ -51,14 +50,10 @@ globalThis.{{project_name}}.<TableOrDomain>Form = (function () {
 
 ## Business Logic
 - Pure business rules MUST NOT access `executionContext`, `formContext`, `Xrm`, DOM APIs or mutable global state. Immutable constants and configuration are allowed.
-- `executionContext`, `formContext` and `Xrm` stay in the form/integration layer, which may produce side effects through supported APIs.
 - Use supported Dynamics Client APIs; never manipulate the DOM directly.
 
 ## Performance
-- `onLoad` MUST NOT block form rendering. Defer work that is not needed to render the form.
 - Never use synchronous Web API or `XMLHttpRequest` calls. Use the promise-based `Xrm.WebApi`.
-- Prefer values already on the form (`formContext.getAttribute`) over retrieving the same data through `Xrm.WebApi`.
-- Request only the columns needed (`$select`). Avoid unbounded queries in form scripts.
 - Register `onChange` handlers only on the attributes that actually drive the rule, and keep handlers on high-frequency fields cheap.
 - Read controls and attributes once into locals instead of repeating `getControl`/`getAttribute` lookups in loops.
 
@@ -66,7 +61,6 @@ globalThis.{{project_name}}.<TableOrDomain>Form = (function () {
 - Expected business/validation failures surface to the user through supported APIs (`Xrm.Navigation.openErrorDialog`, `formContext.ui.setFormNotification`).
 - Every rejected promise from `Xrm.WebApi` or `Xrm.Navigation` MUST be handled; empty `catch` blocks are not allowed.
 - Block save with `preventDefault()` only for genuine validation failures the user can act on.
-- Do not leave `console.log` diagnostics in deployed web resources.
 
 ## Testing
 - Vitest MUST load and execute the actual production web resource file.
