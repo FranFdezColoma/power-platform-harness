@@ -6,7 +6,7 @@
 - **OpenSpec work** (any /opsx command): `docs/agents/openspec-workflow.md` is mandatory reading first. It says what each step reads, when the branch and the feature solution are created, and the functional and technical gates.
 - **Any other change** (a quick fix): `docs/agents/development-standards.md` is mandatory reading before any implementation: it holds the technology-agnostic rules, the Definition of Done, and the index of per-technology standards. From that index, read only the file(s) relevant to what you're about to touch.
 
-English for everything in the repository, except OpenSpec artifacts, which use the artifact language set in `openspec/config.yaml`.
+English is mandatory for code. Everything else uses the project language: the artifact language set in `openspec/config.yaml`.
 
 ## Microsoft official skills
 

@@ -15,18 +15,18 @@ decides what knowledge each step uses.
 | Part | Gate | Detail |
 | --- | --- | --- |
 | Project context | docs/context/project.md | docs/context/glossary.md, docs/adr/ |
-| Solutioning | docs/agents/solutioning-standards.md | docs/solutioning/<topic>.md |
+| Solutioning | docs/solutioning/principles.md | docs/solutioning/<topic>.md |
 | Implementation | docs/agents/development-standards.md | docs/development/<tech>.md |
 
 ## What each step reads
 | Step | Read |
 | --- | --- |
-| /opsx:explore | docs/context/project.md; docs/agents/solutioning-standards.md only when the exploration weighs how to solve something or needs the current system state |
+| /opsx:explore | docs/context/project.md; docs/solutioning/principles.md only when the exploration weighs how to solve something or needs the current system state |
 | proposal | docs/context/project.md |
-| specs | proposal.md; docs/context/glossary.md |
-| design | docs/agents/solutioning-standards.md; docs/adr/ |
+| specs | docs/context/glossary.md |
+| design | docs/solutioning/principles.md; docs/adr/ |
 | tasks | docs/agents/development-standards.md |
-| /opsx:apply | docs/agents/development-standards.md, then docs/development/<tag>.md for each task's tag |
+| /opsx:apply | docs/agents/development-standards.md |
 
 - Artifact rows (proposal, specs, design, tasks) apply whichever command writes the
   artifact.
@@ -48,13 +48,9 @@ decides what knowledge each step uses.
   "Keeping this context current" in docs/context/project.md. Do it only if the user agrees.
 
 ## Branch and feature solution
-- Before /opsx:propose writes anything, ask whether the change is a `feature`, `fix` or
-  `chore`, and create the branch `<type>/<change-name>`, after checking it does not exist
-  locally or on origin. The change's artifacts and approval.md live on that branch.
-- Before /opsx:apply implements the first task, and after both gates are `Approved`, create
-  the feature solution `<type>_<ChangeNameInPascalCase>` with `dv-solution`, unless the change
-  creates or modifies no Dataverse component.
-- docs/development/solutions.md holds the names, the checks and the procedure for both.
+/opsx:propose creates the branch before writing anything; /opsx:apply creates the feature
+solution after both gates are `Approved`, before the first task. Follow "An OpenSpec change" in
+docs/development/solutions.md: it holds the names, the checks and the procedure for both.
 
 ## Gates
 - Functional gate after the change is planned; technical gate before /opsx:apply.
@@ -69,5 +65,4 @@ decides what knowledge each step uses.
   gate too if proposal or specs changed.
 - Before /opsx:apply implements the first task, pull and read approval.md. If either gate is
   not `Approved`, implement nothing and say which gate is missing.
-- A change to an artifact after its gate goes through that gate again.
 - How a person approves a change is in "Approving a change" in README.md.

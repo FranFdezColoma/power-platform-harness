@@ -1,6 +1,6 @@
 # Toolchain
 
-The tools this repository expects on a developer machine, and what each one is for. This file states no versions on purpose: what counts as supported or current changes faster than this file does. When a task needs a tool, check the installed version against its official source (release notes, the support policy, the official skill that depends on it) and recommend an update when it is unsupported or clearly behind. The target frameworks and package versions the code uses are the project's, stated in `docs/development/*.md` and in the project files themselves.
+The tools this repository expects on a developer machine, and what each one is for. This file states no versions on purpose, except the .NET SDK's floor, which the `.slnx` solution format sets: what counts as supported or current changes faster than this file does. When a task needs a tool, check the installed version against its official source (release notes, the support policy, the official skill that depends on it) and recommend an update when it is unsupported or clearly behind. The target frameworks and package versions the code uses are the project's, stated in `docs/development/*.md` and in the project files themselves.
 
 Tool availability belongs to the machine, not to the repository. Check what is available when a task needs it — `Get-Command pac`, the MCP servers registered with the agent — and never assume a tool is present or absent. Installing and updating them is the harness's `setup-tools` skill's job, and signing in is its `connect` skill's; Python's packages, the Dataverse MCP server and `.env` are `dv-connect`'s.
 
@@ -10,7 +10,7 @@ Tool availability belongs to the machine, not to the repository. Check what is a
 | --- | --- |
 | PowerShell | The terminal on Windows; `pac` and PCF tooling |
 | git | One branch per unit of work |
-| .NET SDK | Building and testing plugins and Custom APIs |
+| .NET SDK 10 or later | Building and testing plugins and Custom APIs; the solution file is `.slnx` |
 | Node.js | Testing and linting web resources and PCF controls; the official skills' hooks and MCP servers |
 | Power Platform CLI (`pac`) | Code generation, solution operations, environment access |
 | Python | The Dataverse skills' scripts (`scripts/auth.py`) and Python SDK |

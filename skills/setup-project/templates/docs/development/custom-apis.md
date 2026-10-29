@@ -10,7 +10,7 @@ Read `docs/agents/development-standards.md` first, then `docs/development/csharp
 
 ## Project
 
-- Each Custom API implementation is its own project: `src/PowerPlatform/CustomAPIs/{{project_name}}.<ApiName>/`, with its test project `{{project_name}}.<ApiName>.Tests` next to it, both in the `CustomAPIs` solution folder of `PowerPlatform.sln`. It references `{{project_name}}.Common` like any plugin project.
+- Each Custom API implementation is its own project: `src/PowerPlatform/CustomAPIs/{{project_name}}.<ApiName>/`, with its test project `{{project_name}}.<ApiName>.Tests` next to it, both in the `CustomAPIs` solution folder of `PowerPlatform.slnx`. It references `{{project_name}}.Common` like any plugin project.
 
 ## Definition
 
@@ -38,4 +38,4 @@ Read `docs/agents/development-standards.md` first, then `docs/development/csharp
 
 ## Testing
 
-- The implementation is tested as a plugin, with FakeXrmEasy, per `docs/development/csharp-plugins.md`.
+- The implementation is tested as a plugin, with XrmMockup, per `docs/development/csharp-plugins.md`.

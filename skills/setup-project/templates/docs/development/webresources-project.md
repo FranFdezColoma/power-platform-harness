@@ -7,7 +7,7 @@ the project that wraps them for the IDE and the test/lint tooling.
 ## Stack
 
 - The WebResources folder is an SDK-style project: `src/PowerPlatform/WebResources/{{project_name}}.WebResources/{{project_name}}.WebResources.esproj`, using `Sdk="Microsoft.VisualStudio.JavaScript.Sdk/<version>"`. The `Sdk` attribute always carries a version: the SDK is distributed through NuGet, not installed with Visual Studio or the .NET SDK, so MSBuild cannot resolve it without one and Visual Studio leaves the project unloaded. When creating the project, pin the latest stable version of `Microsoft.VisualStudio.JavaScript.Sdk` on NuGet. A project that already pins a version keeps it; upgrading is its own task.
-- `src/PowerPlatform/PowerPlatform.sln` references this project inside the `WebResources` solution folder, so Visual Studio shows it under that folder. Plugin and Custom API projects go into the same solution, in their own solution folders: see `docs/development/csharp-plugins.md`.
+- `src/PowerPlatform/PowerPlatform.slnx` references this project inside the `WebResources` solution folder, so Visual Studio shows it under that folder. Plugin and Custom API projects go into the same solution, in their own solution folders: see `docs/development/csharp-plugins.md`.
 - Tooling is test and lint only: Vitest + ESLint, per `docs/development/javascript.md`. No bundler, no TypeScript, no UI framework — the `.esproj` is a Visual Studio convenience for editing and testing the plain JavaScript web resources described there, not a build step. Introducing one is a separate, deliberate decision, not a side effect of adopting this standard.
 
 ## Structure
@@ -19,7 +19,7 @@ the project that wraps them for the IDE and the test/lint tooling.
 
 ## Creating it
 
-The first web resource creates this project when it does not exist yet: the `.esproj`, the three files next to it, and its entry in `PowerPlatform.sln` (creating the solution if needed, per `docs/development/csharp-plugins.md`). The `{{publisher_prefix}}_/src/{js,html,css,icons}` folders are created with the rest of the folder tree by `setup-project`'s `new-folders.ps1`.
+The first web resource creates this project when it does not exist yet: the `.esproj`, the three files next to it, and its entry in `PowerPlatform.slnx` (creating the solution if needed, per `docs/development/csharp-plugins.md`). The `{{publisher_prefix}}_/src/{js,html,css,icons}` folders are created with the rest of the folder tree by `setup-project`'s `new-folders.ps1`.
 
 ## Adapting to an existing project
 

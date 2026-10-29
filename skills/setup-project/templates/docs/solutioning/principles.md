@@ -1,8 +1,17 @@
 # Solutioning Principles
 
-Common principles for every design.md. Read `docs/agents/solutioning-standards.md` first.
-Designs are for a live project: they go down to the concrete component and start from what
-already exists in the environment.
+Common principles for every design.md. How to build it is governed by
+`docs/agents/development-standards.md`. Designs are for a live project: they go down to the
+concrete component and start from what already exists in the environment.
+
+## How to use this file
+- Read it before writing or revising design.md, and in /opsx:explore when the exploration
+  weighs how to solve something or needs the current system state.
+- Then read the topic file for each topic the design considers, only those. Topic files live
+  in `docs/solutioning/` and are listed in the index at the end of this file.
+- A topic file may make a principle more specific. It MUST NOT contradict it. On a conflict,
+  this file wins and the conflict is reported.
+- If a topic has no file, apply this file alone and state the gap in design.md.
 
 ## design.md and tasks.md
 - design.md decides; tasks.md only breaks the decisions into steps. Every choice a reviewer
@@ -40,7 +49,7 @@ A design that contradicts an accepted ADR does not override it: it raises an ope
 ("supersede ADR-NNNN?").
 
 ## Keep it simple
-The simplest design that meets the specs wins. Every component must be needed by a spec
+The simplest design that meets the specs wins. Avoid over engeneering. Every component must be needed by a spec
 requirement; nothing is added for future needs, flexibility or elegance.
 
 ### The ladder
@@ -109,3 +118,7 @@ solutions: the development standards decide that from the branch.
 - Platform limits, licensing requirements and preview or general-availability status are
   checked there and cited inline, next to the claim, with their source. What cannot be
   checked is marked unverified. Never quote prices.
+
+## Topic index
+| Topic | File |
+| --- | --- |

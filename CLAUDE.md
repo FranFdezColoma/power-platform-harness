@@ -18,7 +18,8 @@ design; read it before changing anything.
 | `skills/set-power-platform/SKILL.md` | The skill users run: runs `setup-tools`, `connect`, `setup-project` and `connect` again, and reports once |
 | `skills/setup-tools/SKILL.md` | The machine: inspects tools, skills and plugins, proposes each install, update or removal |
 | `skills/setup-project/SKILL.md` | The repository: copies the templates, runs `openspec init`, creates a new project's starting code, adapts them to an existing project |
-| `skills/setup-project/scripts/new-folders.ps1` | Creates the folder tree of a new project: `Plugins`, `CustomAPIs`, the WebResources `<prefix>_/src/...` folders, `docs/adr` |
+| `skills/setup-project/scripts/new-folders.ps1` | Creates the folder tree of a new project: `Plugins`, `CustomAPIs`, the WebResources `<prefix>_/src/...` folders |
+| `skills/setup-project/references/` | What `setup-project` reads only in the existing-project and harness-present modes |
 | `skills/setup-project/templates/` | Content shipped verbatim, tokens replaced, into every project |
 | `skills/connect/SKILL.md` | The sign-ins, and the connections `.power-platform/project.json` expects |
 
@@ -38,13 +39,13 @@ self-contained: it reaches only its own folder, so it still works installed on i
   and note it in the commit.
 - `skills/setup-project/templates/docs/agents/development-standards.md` owns the standards index.
   Adding a file under `docs/development/` without adding its row to that index leaves the file
-  unreachable. The same holds for `docs/solutioning/` and the index in `solutioning-standards.md`;
+  unreachable. The same holds for `docs/solutioning/` and the topic index in `principles.md`;
   `docs/agents/openspec-workflow.md` routes each OpenSpec step to those gate files.
 - What `openspec init` generates is not a template: never copy OpenSpec skills or commands into
   `templates/`.
 - Keep the template free of anything project-specific or client-specific. This repository is
   public: no environment urls, tenant ids, client names, solution names or real prefixes.
-- No hand-written versions. A pin a project needs is described, and resolved when the project
+- No hand-written versions, except the .NET SDK 10 floor the `.slnx` solution format sets. A pin a project needs is described, and resolved when the project
   creates it (see "Versions" in `development-standards.md`).
 - A rule added to `templates/.claude/settings.json` needs both a `Bash(...)` and a
   `PowerShell(...)` form: on Windows the agent may run the same command through either tool.

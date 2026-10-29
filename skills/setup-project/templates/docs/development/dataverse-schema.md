@@ -43,5 +43,4 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 ## After the change
 
 - Create every table, column and relationship in the solution `docs/development/solutions.md` names for the current branch.
-- Read the metadata back from the environment with `dv-metadata` and confirm it matches the intent. Never assert from memory what the platform accepted.
-- Deleting or retyping a column, deleting a table or a relationship: prepare the operation and hand it over. A human executes it.
+- Read the metadata back from the environment with `dv-metadata` and confirm it matches the intent. Never assert from memory what the platform accepted.

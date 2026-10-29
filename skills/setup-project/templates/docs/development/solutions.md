@@ -7,9 +7,7 @@ Scope: everything that happens inside DEV — which solution a component goes in
 ## Environments
 
 - DEV is shared: every change lands where colleagues are working. There are no per-developer environments.
-- DEV is the environment `.power-platform/project.json` names (`connections.dataverse.devUrl`). Name the environment before any operation against it (`pac org who --environment <devUrl>`). An environment you have not verified is production.
-- Write operations are permitted in DEV only, and only with a tool that can perform them: the official skills, `pac`, the Dataverse CLI, the Dataverse MCP server or the Dataverse skills' Python SDK. Without one, prepare the operation and hand it to the developer.
-- Irreversible operations are prepared, not executed: deleting a table, column, relationship, record or solution; changing the data type of a populated column. A human runs them.
+- DEV is the environment `.power-platform/project.json` names (`connections.dataverse.devUrl`). Naming it, what may be written there and the irreversible operations follow "Working against Dataverse" in `docs/agents/development-standards.md`.
 - Never create or modify a component without a target solution. A component created outside one lands in the Default Solution, where nothing tracks it.
 
 ## Solutions
@@ -64,7 +62,7 @@ Then show the user the plan — branch, feature solution, publisher and environm
   - **Checkout** — the default: `git switch -c <branch>`. Uncommitted changes move to the new branch.
   - **Worktree** — `git worktree add -b <branch> ../<repo>.worktrees/<type>/<short-description>`; continue inside it. Recommend it when another session is working in this folder: switching its branch underneath it loses work.
 - Work that creates or modifies no Dataverse component (a dependency bump, a code-only refactor) needs no feature solution: run check 1 only and create the branch.
-- Then create the feature solution with `dv-solution`: that unique name, version `1.0.0.0`, unmanaged, publisher `{{publisher_unique_name}}`, in DEV. Creating a solution is a human decision: do it only after the user confirms, never as a side effect of another task. Do not publish customizations: publishing in a shared DEV publishes every colleague's unpublished work along with it.
+- Then create the feature solution with `dv-solution`: that unique name, version `1.0.0.0`, unmanaged, publisher `{{publisher_unique_name}}`, in DEV. Creating a solution is a human decision: do it only after the user confirms, never as a side effect of another task.
 - If creating the solution fails, stay on the branch, repeat checks 2 to 4 and retry.
 
 ## Which solution a component goes into

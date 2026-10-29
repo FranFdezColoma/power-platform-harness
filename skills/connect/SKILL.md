@@ -1,7 +1,7 @@
 ---
 name: connect
-description: Sign in to everything a Power Platform harness project needs and check it against .power-platform/project.json — a pac profile that reaches the DEV environment, the az session in the project's tenant, the repository (gh for GitHub, the az session for Azure DevOps, in its own tenant when it differs), the playwright-cli session signed in to DEV, the Dataverse MCP server or, when the tenant restricts it, the az session the Dataverse skills' Python SDK takes its token from, and dv-connect's .env — without changing any default another project relies on. Use before or after setup-project, when switching machines, when a command reaches the wrong environment, or when set-power-platform reaches its connect steps.
-allowed-tools: Bash(pac auth list*), Bash(pac auth who*), Bash(pac org who *), Bash(pac org list*), Bash(pac org fetch *), Bash(git remote *), Bash(gh auth status*), Bash(gh repo view *), Bash(az account show*), Bash(az extension list *), Bash(az devops project list *), Bash(playwright-cli --version), Bash(python scripts/auth.py --diagnose), PowerShell(pac auth list*), PowerShell(pac auth who*), PowerShell(pac org who *), PowerShell(pac org list*), PowerShell(pac org fetch *), PowerShell(git remote *), PowerShell(gh auth status*), PowerShell(gh repo view *), PowerShell(az account show*), PowerShell(az extension list *), PowerShell(az devops project list *), PowerShell(playwright-cli --version), PowerShell(python scripts/auth.py --diagnose), Read, Edit, Glob, Grep, AskUserQuestion
+description: Sign in to everything a Power Platform harness project needs — pac against DEV, az in the tenant, the repository (gh or Azure DevOps), the playwright-cli session, the Dataverse MCP server or its Python SDK path — and check it against .power-platform/project.json. Use before or after setup-project, when switching machines, when a command reaches the wrong environment, or when set-power-platform reaches its connect steps.
+allowed-tools: Bash(pac auth list*), Bash(pac auth who*), Bash(pac org who*), Bash(git remote *), Bash(gh auth status*), Bash(gh repo view *), Bash(az account show*), Bash(az extension list*), Bash(az devops project list *), Bash(playwright-cli --version), Bash(python scripts/auth.py --diagnose), PowerShell(pac auth list*), PowerShell(pac auth who*), PowerShell(pac org who*), PowerShell(git remote *), PowerShell(gh auth status*), PowerShell(gh repo view *), PowerShell(az account show*), PowerShell(az extension list*), PowerShell(az devops project list *), PowerShell(playwright-cli --version), PowerShell(python scripts/auth.py --diagnose), Read, Edit, Glob, Grep, AskUserQuestion
 ---
 
 # Connect the project
@@ -12,16 +12,16 @@ Talk to the user in the conversation's language.
 
 ## Two passes
 
-- **Before the repository is set up** — no `.power-platform/project.json` in the current folder. Do the sign-ins (sections 1 to 3) and keep the values you resolved in the conversation: `setup-project` writes them into `project.json`. Do not hand anything to `dv-connect` yet: it lays out folders of its own, and the harness lays the repository out first (exception E2 in `docs/agents/skill-exceptions.md`). Report the Dataverse MCP server and `.env` as pending for the next pass.
+- **Before the repository is set up** — no `.power-platform/project.json` in the current folder. Do the sign-ins (sections 1 to 3) and keep the values you resolved in the conversation: `setup-project` writes them into `project.json`. Do not hand anything to `dv-connect` yet: it lays out folders of its own, and the harness lays the repository out first (`dv-connect` would otherwise create a root `plugins/` folder next to the harness's `src/PowerPlatform/`). Report the Dataverse MCP server and `.env` as pending for the next pass.
 - **With `project.json`** — it says what the project expects. Do every section, and record the connections it is still missing (section 6).
 
-Without `pac`, the Dataverse sign-in is pending: point at `setup-tools` and continue with the rest.
+Without `pac`, the Dataverse sign-in is pending: point at `setup-tools` and continue with the rest. The tenant then comes from `connections.dataverse.tenantId`, from what was passed to this skill, or from the user (a free value); `az account show` may propose it, but the user confirms it.
 
 ## Rules
 
-- Never change a default another project relies on: no `pac auth select`, no `az account set`, no `az devops configure --defaults`. Pass `--environment <devUrl>` to every `pac` command, and `--org` and `--project` to every `az devops` and `az repos` command.
+- Never change a default another project relies on without saying so: no `az account set`, no `az devops configure --defaults`. Pass `--environment <devUrl>` to every `pac` command, and `--org` and `--project` to every `az devops` and `az repos` command.
 - A sign-in that opens a browser or waits for input is the user's to run in their own terminal: give them the exact command, wait, then verify it with the check the section names.
-- `az login` changes the active `az` account for every project on the machine. Say so before giving it.
+- `pac auth create` and `pac auth select` change the active `pac` profile, and `az login` the active `az` account, for every project on the machine. They cannot be avoided, since `pac org who` and the `az` path read only the active one: say so before giving them, and that a project signed in as another user or tenant needs its own profile or account selected again.
 - Use the sign-ins the tools offer, never a personal access token or a secret: a token kept on the machine is a credential that expires and leaks.
 - The only file this skill writes is `.power-platform/project.json`, and only its `connections` section, after the user confirms each value. It never holds a secret.
 - A value you could not confirm stays `null`; never guess one.
@@ -29,22 +29,27 @@ Without `pac`, the Dataverse sign-in is pending: point at `setup-tools` and cont
 ## 1. Dataverse (`pac`)
 
 1. **DEV url.** Take `connections.dataverse.devUrl`, or the url passed to this skill. When there is none, ask for the DEV environment url in a plain message (it is a free value, not a closed choice) and wait.
-2. **Profile.** When `pac auth list` has a profile with which `pac org who --environment <devUrl>` succeeds, reuse it. Otherwise give the user `pac auth create --name <profile> --environment <devUrl>`. `<profile>` is the project name (`identity.projectName`, or the one passed to this skill); before the project has one, the subdomain of the DEV url. A named profile per project keeps them apart on a machine that works for several. Verify with `pac org who --environment <devUrl>`.
-3. **Check it.** The url `pac` reached must be the DEV url. Its friendly name and url must not look like production or test (`prod`, `prd`, `live`, `test`, `qa`, `uat`, `stag`, `preprod`): the harness writes in DEV only. If it does, say so and do not record it.
+2. **Profile.** `pac org who` uses only the active profile; there is no flag to try another. So:
+   - When `pac org who --environment <devUrl>` succeeds with the active profile, reuse it.
+   - Otherwise, when `pac auth list` shows a profile named `<profile>`, or one whose user belongs to the DEV tenant, propose `pac auth select --name <that profile>` (a machine-wide change, see Rules) and verify.
+   - Otherwise give the user `pac auth create --name <profile> --environment <devUrl>`.
+
+   `<profile>` is the project name (`identity.projectName`, or the one passed to this skill); before the project has one, the subdomain of the DEV url. `pac` accepts at most 30 characters: cut it there. A named profile per project keeps them apart on a machine that works for several. Verify with `pac org who --environment <devUrl>`.
+3. **Check it.** The url `pac` reached must be the DEV url. The harness writes in DEV only: when its friendly name or url looks like production or test (`prod`, `prd`, `live`, `test`, `qa`, `uat`, `stag`), say so and record it only when the user confirms, as a closed choice, that it is the development environment.
 4. **Tenant.** Take `tenantId` from `pac org who`.
 
 ## 2. Azure (`az`)
 
 The model-apps and power-automate skills, and the Dataverse skills' Python SDK when the tenant restricts the MCP server, use the `az` session.
 
-- `az account show` must show a signed-in account whose `tenantId` is the Dataverse tenant. When it shows none, or another tenant, give the user `az login --tenant <tenantId>` and wait. Verify with `az account show`.
+- `az account show` must show a signed-in account whose `tenantId` is the Dataverse tenant. When it shows none, or another tenant, give the user `az login --tenant <tenantId> --allow-no-subscriptions` and wait: a tenant that holds only Dataverse often has no Azure subscription, and `az login` fails there without the flag. Verify with `az account show`.
 
 ## 3. Repository
 
 1. **Provider and url.** Take `connections.repository`, or what was passed to this skill. Otherwise read `git remote get-url origin`: `github.com` is `github`; `dev.azure.com` or `visualstudio.com` is `azure-devops`. Propose it and confirm it. With no remote, ask for the provider (a closed choice: `github` or `azure-devops`) and leave the url `null`. A remote that disagrees with the recorded provider is a conflict: report it, do not resolve it.
 2. **`github`.** `gh auth status` must show a signed-in account; when it does not, give the user `gh auth login`. Then `gh repo view <url>` must reach the repository.
 3. **`azure-devops`.** `az extension list` must include `azure-devops` (`setup-tools` installs it). The repository is reached through the `az` session: `az devops project list --org <organization url>` must succeed.
-   - When it fails while `az` is signed in to the Dataverse tenant, the organization is likely in another tenant — common when the repository is hosted by another company than the environment. Ask for the organization's tenant id (a free value), and give the user `az login --tenant <that tenant>`. Explain that `az` has one active account: whichever tenant the user signed in to last decides whether DEV's `az` path or the repository answers, and they switch by signing in again. Record that tenant as `connections.repository.tenantId`; it is `null` when it is the Dataverse tenant or the provider is `github`.
+   - When it fails while `az` is signed in to the Dataverse tenant, the organization is likely in another tenant — common when the repository is hosted by another company than the environment. Ask for the organization's tenant id (a free value), and give the user `az login --tenant <that tenant> --allow-no-subscriptions`. Explain that `az` has one active account: whichever tenant the user signed in to last decides whether DEV's `az` path or the repository answers, and they switch by signing in again. Record that tenant as `connections.repository.tenantId`; it is `null` when it is the Dataverse tenant or the provider is `github`.
 
 ## 4. `playwright-cli` session
 

@@ -9,7 +9,6 @@
         src/PowerPlatform/Plugins
         src/PowerPlatform/CustomAPIs
         src/PowerPlatform/WebResources/<ProjectName>.WebResources/<prefix>_/src/{js,html,css,icons}
-        docs/adr
 
     It only creates folders and empty .gitkeep files. It never overwrites or deletes anything,
     writes no template content and talks to nothing but the file system, so running it twice
@@ -74,7 +73,6 @@ $leafFolders = @(
     "$webResources/html"
     "$webResources/css"
     "$webResources/icons"
-    'docs/adr'
 )
 
 $created = @()
