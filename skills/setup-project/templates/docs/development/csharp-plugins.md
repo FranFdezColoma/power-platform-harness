@@ -7,7 +7,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Use SDK-style projects and deploy as Dataverse `.nupkg` plug-in packages.
 - Do not strong-name assemblies. No `.snk`; `<SignAssembly>false</SignAssembly>`.
 - Generate early-bound classes with `pac modelbuilder build --namespace {{project_name}}.Common.Generated --outdirectory src/PowerPlatform/Plugins/{{project_name}}.Common/Generated`. Without `--namespace` the classes land in the global namespace. Never edit generated files manually.
-- Tests: xUnit + XrmMockup365, pinned per `docs/agents/development-standards.md`. Do not use FakeXrmEasy: version 2 and later require a commercial license.
+- Tests: MSTest + Moq, pinned per `docs/agents/development-standards.md`. Test projects target `net462`, like the plugin they reference.
 
 ## Projects
 - All Power Platform code lives under `src/PowerPlatform/`, in `PowerPlatform.slnx`. Each top-level folder there (`Plugins`, `CustomAPIs`, `WebResources`) is also a solution folder in `PowerPlatform.slnx` of the same name, and every project is nested in the solution folder that matches its physical folder.
@@ -39,12 +39,13 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 
 </Project>
 ```
-- Each plugin project has exactly one test project, next to it: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>.Tests/`. There is no separate `tests/` tree.
+- Each plugin project has exactly one test project, next to it: `src/PowerPlatform/Plugins/{{project_name}}.<Entity>.Tests/`, and so does `{{project_name}}.Common` once it holds a helper with logic. There is no separate `tests/` tree. Its `.csproj` is the one above without `PackageId`, `Version` and the `Microsoft.PowerApps.MSBuild.Plugin` reference, with `<IsPackable>false</IsPackable>`, the `MSTest` metapackage and `Moq`, and project references to the project under test and to `{{project_name}}.Testing`.
 - `src/PowerPlatform/Plugins/{{project_name}}.Common/` is the shared library: `PluginBase.cs`, the early-bound classes and helpers used by more than one project. It holds no plugin classes and is not registered in Dataverse.
 - The first plugin or Custom API creates what does not exist yet:
   - `src/PowerPlatform/PowerPlatform.slnx` (`dotnet new sln --name PowerPlatform --format slnx`, .NET SDK 10 or later), with the solution folders above.
   - `{{project_name}}.Common.csproj`: the `.csproj` above with `{{project_name}}.Common` as `RootNamespace` and `AssemblyName`, and without `PackageId`, `Version`, the `Microsoft.PowerApps.MSBuild.Plugin` reference and the project reference. It is a class library, not a plug-in package.
   - `PluginBase.cs` in it: the `PluginBase`, `ILocalPluginContext` and `LocalPluginContext` that `pac plugin init` generates. Run `pac plugin init` in a temporary folder, copy only `PluginBase.cs`, change its namespace to `{{project_name}}.Common`, and delete the temporary folder.
+  - `src/PowerPlatform/Plugins/{{project_name}}.Testing/`: a `net462` class library referenced by every test project and by no plugin, holding the helper that builds the mocked `IServiceProvider` described in "Testing". Add it to the `Plugins` solution folder.
 - Add every new project to `PowerPlatform.slnx` in its solution folder: `dotnet sln src/PowerPlatform/PowerPlatform.slnx add <csproj> --solution-folder Plugins`.
 
 ## Structure
@@ -58,6 +59,7 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 
 ## Business Logic
 - Dataverse-specific code (`IOrganizationService`, `IPluginExecutionContext`, `Entity`, etc.) belongs in the integration layer; pure rules use plain C# values and POCOs.
+- The plugin class only wires: it takes from `ILocalPluginContext` the services and context values the capability needs and passes them to a service class, the services through its constructor. Service classes never receive `IServiceProvider` or `ILocalPluginContext`.
 
 ## Pipeline
 - Prefer PreValidation for validation, PreOperation for modifying `Target`, and PostOperation when the operation requires persisted data.
@@ -72,10 +74,12 @@ Read `docs/agents/development-standards.md` first. This file only adds what is s
 - Use `ITracingService` for diagnostics: the trace is the only forensic record a synchronous plugin leaves behind.
 
 ## Testing
-- Plugin tests MUST execute the production `Execute` path through XrmMockup: send the triggering request (`Create`, `Update`...) to a service from `XrmMockup365` and let it run the pipeline. Never call `Execute` by hand and never test against a live Dataverse environment.
-- XrmMockup simulates the environment from a local copy of its metadata, in `Metadata/` of the test project. Generate it with the `XrmMockup.MetadataGenerator` .NET local tool (`dotnet tool run xrmmockup-metadata`), pinned in the repository's tool manifest, reading DEV as set in `.power-platform/project.json`. Its `appsettings.json` lists only the solution and the tables the tests use; the environment url goes on the command line (`--dataverse-url`), never in that committed file. Commit the generated files, and regenerate them when the schema the tests depend on changes; that generation is the only step that connects to Dataverse, the tests run offline.
-- Set `BasePluginTypes` to `PluginBase` from `{{project_name}}.Common`, so XrmMockup finds the plugins. A step not yet registered in DEV (and therefore not in the metadata) is declared in `IPluginMetadata`, with the same message, table, stage, filtering attributes and images it will be registered with.
-- One `XrmMockupSettings` per test project, shared through an xUnit class fixture (`IClassFixture<>`), so the metadata is loaded once. Each test gets its instance with `XrmMockup365.GetInstance(settings)` and calls `ResetEnvironment()` on it, so no test depends on data left by another.
-- Cover recursion and pipeline-depth behavior wherever the plugin can retrigger itself.
+- Never test against a live Dataverse environment. Each layer is tested once, at its own level: pure rules directly, without mocks; service classes directly, with Moq doubles of the services they receive; plugin classes through their production `Execute`, covering only the wiring: the identity used, what is read from `Target` and the images, and the exception raised.
+- Build the plugin's doubles with the helper in `{{project_name}}.Testing`. It returns the `IServiceProvider` the plugin receives, with a double for every service `PluginBase` resolves: an `IPluginExecutionContext` mock with distinct, non-empty `UserId` and `InitiatingUserId`, `Depth` 1, and real, empty `InputParameters`, `OutputParameters`, `SharedVariables`, `PreEntityImages` and `PostEntityImages`; and an `IOrganizationServiceFactory` that returns a separate `IOrganizationService` mock per user id (`UserId`, `InitiatingUserId`, `null` for SYSTEM), so a test can tell which identity made each call. Each test sets only what its case needs.
+- Set the context as Dataverse sends it for the registered step: its message, stage and primary entity, a `Target` that carries only the attributes the operation sends, and only the images the step registers. A mock enforces none of the registration; the test is only as true as this context.
+- `IOrganizationService` mocks use `MockBehavior.Strict`: set up every call the case expects, so an unexpected call fails the test instead of returning `null`.
+- Assert what the caller sees: the `Target` after a PreOperation plugin, the `OutputParameters` of a Custom API, the `InvalidPluginExecutionException` and its message, with `Assert.ThrowsExactly<T>` (MSTest 4 has no `[ExpectedException]`). Assert a write with `Verify` on its table and the attributes that matter, not on call order or on calls the outcome does not depend on.
+- Mocks do not run the pipeline: no test can show that one plugin triggers another. Wherever the plugin can retrigger itself, test the guard it relies on (`Depth`, a shared variable, a changed-attribute check) with the context the retriggered call would bring.
+- Each test builds its own doubles, in the test or in `[TestInitialize]`; no static or shared mock state.
 - After changes, build affected projects and run all affected tests.
 - Build and test one project per command: `dotnet test <Project>.Tests.csproj` builds the plugin and `{{project_name}}.Common` it references. `dotnet build` accepts a single project or solution; to build everything, `dotnet build src/PowerPlatform/PowerPlatform.slnx`.

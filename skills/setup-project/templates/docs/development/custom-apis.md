@@ -38,4 +38,4 @@ Read `docs/agents/development-standards.md` first, then `docs/development/csharp
 
 ## Testing
 
-- The implementation is tested as a plugin, with XrmMockup, per `docs/development/csharp-plugins.md`.
+- The implementation is tested as a plugin, per `docs/development/csharp-plugins.md`: the request parameters go in `InputParameters`, and the test asserts the response in `OutputParameters`.
