@@ -67,7 +67,7 @@ README.md                                # for people: how to approve a change
 solutions/README.md                      # exported solution source goes here
 scripts/README.md                        # the Dataverse skills' helper scripts go here
 src/PowerPlatform/                       # new project only: PowerPlatform.slnx, <Project>.Common, WebResources
-openspec/config.yaml                     # OpenSpec, with the artifact language
+openspec/config.yaml                     # OpenSpec process: what each step reads, gates, archive
 .claude/ .github/ .agents/               # the /opsx skills and commands, written by `openspec init`
 docs/
 ├── context/
@@ -75,7 +75,6 @@ docs/
 │   └── glossary.md                      # business terms used in specs
 ├── adr/0000-template.md                 # architecture decision records
 ├── agents/
-│   ├── openspec-workflow.md             # what each /opsx step reads, branch, gates
 │   ├── development-standards.md         # cross-technology rules + Definition of Done
 │   └── toolchain.md                     # the tools a machine needs, and what for
 ├── solutioning/

@@ -40,7 +40,7 @@ self-contained: it reaches only its own folder, so it still works installed on i
 - `skills/setup-project/templates/docs/agents/development-standards.md` owns the standards index.
   Adding a file under `docs/development/` without adding its row to that index leaves the file
   unreachable. The same holds for `docs/solutioning/` and the topic index in `principles.md`;
-  `docs/agents/openspec-workflow.md` routes each OpenSpec step to those gate files.
+  `openspec/config.yaml` routes each OpenSpec step to those gate files.
 - What `openspec init` generates is not a template: never copy OpenSpec skills or commands into
   `templates/`.
 - Keep the template free of anything project-specific or client-specific. This repository is

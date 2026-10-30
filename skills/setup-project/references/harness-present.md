@@ -7,7 +7,7 @@ Every file the project lacks is written as in step 4. For each file it has, comp
 - `.power-platform/project.json`: never compared; it holds the project's data.
 - `docs/context/project.md` and `docs/context/glossary.md`: never compared; the team keeps them current.
 - `README.md`: only the "Approving a change" section is compared.
-- `openspec/config.yaml`: only the `context` lines and the `operations` guidance the template has are compared.
+- `openspec/config.yaml`: only the template's `context`, `rules` and `operations` entries are compared; the project's own rules and guidance are kept.
 - What `openspec init` generated (`.claude/skills/openspec-*`, `.claude/commands/opsx/`, `.github/skills/openspec-*`, `.github/prompts/opsx-*`, `.agents/skills/openspec-*`): never compared; `openspec update` refreshes it (step 4, "OpenSpec").
 - The project's own content in `AGENTS.md` and `CLAUDE.md` (the description, the sections the template does not have): only the template's sections are compared.
 - A reconciled line — a stated version, framework or path, followed by `Harness recommends …` (see `references/existing-project.md`, step 5) — is the project's choice, not a difference; so is a dotted root namespace substituted there.
@@ -16,6 +16,6 @@ Every file the project lacks is written as in step 4. For each file it has, comp
 
 What remains is what the templates changed since the file was written. Show each file's diff and apply it only when the user accepts that file. A diff that would remove a rule the project added is a conflict: report it.
 
-A file an earlier harness wrote that is no longer a template (`docs/agents/solutioning-standards.md`, folded into `docs/solutioning/principles.md`) is proposed for deletion, on its own, once the files that pointed to it are updated.
+A file an earlier harness wrote that is no longer a template (`docs/agents/solutioning-standards.md`, folded into `docs/solutioning/principles.md`; `docs/agents/openspec-workflow.md`, moved into `openspec/config.yaml` in 2.6.0) is proposed for deletion, on its own, once the files that pointed to it are updated.
 
-From 2.5.0 an approval names the commit it reviewed (`at <commit>`, "Gates" in `docs/agents/openspec-workflow.md`). Report each open change whose `approval.md` has an `Approved` line without one: that gate must be approved again before `/opsx:apply`. An ADR in `docs/adr/` that belongs to a change not yet archived stays where it is.
+From 2.5.0 an approval names the commit it reviewed (`at <commit>`, "Gates" in `openspec/config.yaml`). Report each open change whose `approval.md` has an `Approved` line without one: that gate must be approved again before `/opsx:apply`. An ADR in `docs/adr/` that belongs to a change not yet archived stays where it is.

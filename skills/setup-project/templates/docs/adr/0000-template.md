@@ -5,11 +5,11 @@ branch's short description for work outside OpenSpec, and NN counts from 01 with
 never changes. One decision per file.
 
 Where it lives: in an OpenSpec change, in `openspec/changes/<change>/docs/adr/` until the change
-is archived, then in `docs/adr/` ("After /opsx:archive" in docs/agents/openspec-workflow.md).
+is archived, then in `docs/adr/` (the archive guidance in openspec/config.yaml).
 Outside OpenSpec, in `docs/adr/` from the start.
 
 The agent writes an ADR as Proposed. In an OpenSpec change it becomes Accepted when both gates
-are approved ("Gates" in docs/agents/openspec-workflow.md); outside one, when the user confirms
+are approved ("Gates" in openspec/config.yaml); outside one, when the user confirms
 the decision. While Proposed it may be edited; once Accepted, only its status changes, and a
 decision that replaces it is a new ADR that names it under Supersedes.
 

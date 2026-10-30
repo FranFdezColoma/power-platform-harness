@@ -16,5 +16,5 @@ The project name, publisher, prefix, core solution and DEV environment are in `.
 - TBD
 
 ## Keeping this context current
-Updated after each archived change, as "After /opsx:archive" in
-docs/agents/openspec-workflow.md says. The current state, edited in place; never a log.
+Updated after each archived change, as the archive guidance in
+openspec/config.yaml says. The current state, edited in place; never a log.

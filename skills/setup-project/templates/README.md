@@ -14,7 +14,7 @@ folder: until you do, the rules in `.claude/settings.json` do not apply and ever
 ## Approving a change
 
 Each change records its gates in `openspec/changes/<change>/approval.md` (format in "Gates"
-in `docs/agents/openspec-workflow.md`). The file moves with the change when it is archived.
+in `openspec/config.yaml`). The file moves with the change when it is archived.
 
 - **Approve or request changes**: switch to the change's branch and pull, note the commit you
   are reviewing (`git rev-parse --short HEAD`), review the artifacts, edit your gate's line with

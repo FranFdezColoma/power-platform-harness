@@ -18,7 +18,7 @@ When the project already has its own folder layout, do not create the harness's 
 
 The project's own instruction files may not point the agent at `docs/agents/development-standards.md` yet, and then the harness is unreachable. Fix it without moving existing content:
 
-- **`AGENTS.md` existed** — add the sections of the template's `AGENTS.md` it lacks, tokens replaced, starting with "Where to start", which points at `docs/agents/openspec-workflow.md` and `docs/agents/development-standards.md`. Keep the project's own content where it is.
+- **`AGENTS.md` existed** — add the sections of the template's `AGENTS.md` it lacks, tokens replaced, starting with "Where to start", which points at `openspec/config.yaml`, `docs/solutioning/principles.md` and `docs/agents/development-standards.md`. Keep the project's own content where it is.
 - **Only `CLAUDE.md` existed** — `AGENTS.md` was written new. Add one line, `@AGENTS.md`, to the existing `CLAUDE.md`, and nothing else.
 
 ### `README.md`
