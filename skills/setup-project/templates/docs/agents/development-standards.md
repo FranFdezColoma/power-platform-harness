@@ -21,7 +21,7 @@ Every feature, fix or chore is developed on its own branch and, when it touches 
 - Never introduce a new technology, framework, library, architectural pattern, testing framework or project convention when an equivalent project standard already exists.
 - The technology is chosen in design.md, per `docs/solutioning/principles.md`; implementation follows that choice. Work without a design.md (a quick fix) applies the same principles.
 - When nothing here decides it: check the existing codebase, then this repository's docs and skills, then relevant MCPs and official Microsoft documentation. Prefer the established project pattern over a generic best practice.
-- Record a decision in `docs/adr/` before implementing it whenever it affects architecture or project-wide conventions — including one resolved through the fallback above.
+- Record a decision as an ADR before implementing it whenever it affects architecture or project-wide conventions — including one resolved through the fallback above. Where it is written is in `docs/adr/0000-template.md`.
 
 ## Business logic separation
 

@@ -12,6 +12,8 @@ concrete component and start from what already exists in the environment.
 - A topic file may make a principle more specific. It MUST NOT contradict it. On a conflict,
   this file wins and the conflict is reported.
 - If a topic has no file, apply this file alone and state the gap in design.md.
+- Outside OpenSpec (solutioning in conversation), these rules apply to the answer: read
+  "design.md" as that answer. The design.md section rules do not apply.
 
 ## design.md and tasks.md
 - design.md decides; tasks.md only breaks the decisions into steps. Every choice a reviewer
@@ -93,9 +95,9 @@ Microsoft Learn what exists and whether it is generally available.
 - Before closing Decisions, check the change's impact on security, regulated data, licensing,
   volume and platform limits, integrations and existing data. Record each impact as a decision,
   a risk or an open question; never resolve it silently.
-- A decision that affects architecture or project-wide conventions also gets an ADR in
-  `docs/adr/` (format and naming in `docs/adr/0000-template.md`). Every new table is such a
-  decision: its ADR names the standard table that was considered and why it does not fit.
+- A decision that affects architecture or project-wide conventions also gets an ADR (format,
+  naming and location in `docs/adr/0000-template.md`). Every new table is such a decision:
+  its ADR names the standard table that was considered and why it does not fit.
 
 Close Decisions with a components table: the contract handed to tasks.md.
 

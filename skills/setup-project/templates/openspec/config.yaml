@@ -5,6 +5,13 @@ context: |
   Language: {{artifact_language}}
   All artifacts must be written in {{artifact_language}}.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+operations:
+  apply:
+    guidance:
+      - Check both gates as "Gates" in docs/agents/openspec-workflow.md says before the first task.
+  archive:
+    guidance:
+      - Follow "After /opsx:archive" in docs/agents/openspec-workflow.md.
 githubCopilot:
   cloudAgent: false
 
