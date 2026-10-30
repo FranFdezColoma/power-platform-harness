@@ -29,7 +29,7 @@ in `docs/agents/openspec-workflow.md`). The file moves with the change when it i
 
   ```powershell
   git fetch --prune
-  git grep -e "Functional:" -e "Technical:" (git branch -r --format="%(refname:short)") -- "openspec/changes/*/approval.md" ":(exclude)openspec/changes/archive/**"
+  git grep -e "Functional:" -e "Technical:" (git branch -r --format="%(refname:short)" | Where-Object { $_ -notmatch '^origin(/HEAD)?$' }) -- "openspec/changes/*/approval.md" ":(exclude)openspec/changes/archive/**"
   ```
 
 - **History of one change**: `git log --format="%h %an %ad %s" -- openspec/changes/<change>/approval.md`

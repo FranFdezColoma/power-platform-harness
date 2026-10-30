@@ -1,19 +1,12 @@
 schema: spec-driven
+
 context: |
   Follow docs/agents/openspec-workflow.md.
-  Language: {{artifact_language}}. All artifacts must be written in {{artifact_language}}.
+  Language: {{artifact_language}}
+  All artifacts must be written in {{artifact_language}}.
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 githubCopilot:
   cloudAgent: false
-
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

@@ -6,7 +6,8 @@ decides what knowledge each step uses.
 
 ## How to use this file
 - Read it before any /opsx command.
-- Each step reads at most one gate, plus the project context. The gate routes to the detail.
+- Every step reads docs/context/project.md, plus at most one other gate. The gate routes to the
+  detail.
 - A detail file may make a gate rule more specific. It MUST NOT contradict it. On a conflict,
   the gate wins and the conflict is reported.
 - If a topic has no file, apply the gate alone and state the gap in the artifact.
@@ -21,8 +22,8 @@ decides what knowledge each step uses.
 ## What each step reads
 | Step | Read |
 | --- | --- |
-| /opsx:explore | docs/context/project.md; docs/solutioning/principles.md only when the exploration weighs how to solve something or needs the current system state |
-| proposal | docs/context/project.md |
+| /opsx:explore | docs/solutioning/principles.md only when the exploration weighs how to solve something or needs the current system state |
+| proposal | — |
 | specs | docs/context/glossary.md |
 | design | docs/solutioning/principles.md; docs/adr/ |
 | tasks | docs/agents/development-standards.md |
@@ -32,13 +33,16 @@ decides what knowledge each step uses.
   artifact.
 - These rules shape the content of the artifacts. The OpenSpec instructions and templates
   still decide which artifacts exist and how they are structured.
+- Every change has a design.md, whatever its size and whether it is configuration or code,
+  even where the OpenSpec instruction calls it optional: it is where the solution is decided
+  and what the technical gate reviews.
 - tasks.md breaks design.md into steps and takes no design decision. In each task, after the
   checkbox and number, the text starts with a tag in brackets: the docs/development/ file it
   follows, without .md. Example: `- [ ] 1.1 [csharp-plugins] ...`. Work no file covers
   (flows, forms, views, security roles, app configuration) is tagged [low-code].
 - docs/ is the knowledge library: fixed knowledge that no OpenSpec step changes. During
   /opsx:propose, /opsx:update, /opsx:explore and /opsx:apply the agent never edits AGENTS.md
-  or anything under docs/, except a new ADR in docs/adr/ when a decision requires one.
+  or anything under docs/, except the change's own ADRs in docs/adr/.
   If a rule blocks the work, stop and propose the change to the user.
 - Everything specific to a change (schemas, runbooks, verification notes) lives in the
   change's folder. When a standard asks for something to be documented, write it as a
@@ -64,5 +68,6 @@ docs/development/solutions.md: it holds the names, the checks and the procedure 
   changes an artifact after its gate, it sets that gate back to `Pending`, and the technical
   gate too if proposal or specs changed.
 - Before /opsx:apply implements the first task, pull and read approval.md. If either gate is
-  not `Approved`, implement nothing and say which gate is missing.
+  not `Approved`, implement nothing and say which gate is missing. If both are, set the
+  change's ADRs from Proposed to Accepted and commit that before the first task.
 - How a person approves a change is in "Approving a change" in README.md.

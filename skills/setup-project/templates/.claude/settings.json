@@ -33,6 +33,11 @@
       "Bash(git push -f*)",
       "Bash(git push * -f*)",
       "Bash(git push *--delete*)",
+      "Bash(git push * :*)",
+      "Bash(cmd /c del *)",
+      "Bash(cmd /c rd *)",
+      "Bash(dataverse * delete*)",
+      "Bash(dataverse api *DELETE*)",
       "Bash(pac * delete *)",
       "Bash(pac solution upgrade *)",
       "Bash(pac solution import *)",
@@ -64,6 +69,11 @@
       "PowerShell(git push -f*)",
       "PowerShell(git push * -f*)",
       "PowerShell(git push *--delete*)",
+      "PowerShell(git push * :*)",
+      "PowerShell(cmd /c del *)",
+      "PowerShell(cmd /c rd *)",
+      "PowerShell(dataverse * delete*)",
+      "PowerShell(dataverse api *DELETE*)",
       "PowerShell(pac * delete *)",
       "PowerShell(pac solution upgrade *)",
       "PowerShell(pac solution import *)",
@@ -80,7 +90,9 @@
       "mcp__*__delete*",
       "mcp__*__remove*",
       "mcp__*__cancel*",
-      "mcp__*__restore*"
+      "mcp__*__restore*",
+      "Edit(.claude/settings.json)",
+      "Write(.claude/settings.json)"
     ]
   }
 }

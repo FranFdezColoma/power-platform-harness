@@ -21,8 +21,8 @@ concrete component and start from what already exists in the environment.
   does not contain, design.md is incomplete: fix it there.
 - design.md stays at the level of the platform. It never names projects, files, classes,
   namespaces, test frameworks or code patterns: those belong to development.
-- Keep the headings of the OpenSpec template and put the content below inside them. Do not
-  add, rename or reorder headings.
+- Use the sections the OpenSpec design instruction lists, in its order, including Migration
+  Plan and Open Questions when they apply. Do not add, rename or reorder others.
 
 ## Current state
 Do not rely on documentation for what exists in Dataverse: before proposing anything, inspect
@@ -45,11 +45,11 @@ How:
 
 Record it under Context: what exists, what the change touches, and what could not be checked
 (and why).
-A design that contradicts an accepted ADR does not override it: it raises an open question
-("supersede ADR-NNNN?").
+A design that contradicts an accepted ADR does not override it: ask the user whether to
+supersede that ADR before deciding.
 
 ## Keep it simple
-The simplest design that meets the specs wins. Avoid over engeneering. Every component must be needed by a spec
+The simplest design that meets the specs wins. Every component must be needed by a spec
 requirement; nothing is added for future needs, flexibility or elegance.
 
 ### The ladder
@@ -79,21 +79,23 @@ Microsoft Learn what exists and whether it is generally available.
   engines or extension points the specs do not ask for.
 - No automation for what users can do with standard features (a view, a form, a quick
   create), unless a requirement asks for it explicitly.
-- When the standard almost fits, do not build around it: raise an open question proposing
-  to adjust the requirement to the standard.
+- When the standard almost fits, do not build around it: ask the user whether to adjust the
+  requirement to the standard.
 - Only generally available capabilities. A capability in preview is never part of a design;
-  if only a preview capability would cover a need, raise it as an open question.
+  if only a preview capability would cover a need, ask the user.
 - Before closing Decisions, apply the removal test to every component: if removing it
   breaks no spec requirement, remove it.
 
 ## Decisions
 - Each decision describes what will be built: the spec requirement it serves and the
-  components it introduces or modifies. Rejected options are not listed.
+  components it introduces or modifies. Alternatives considered get one line each: the option
+  and why it lost.
 - Before closing Decisions, check the change's impact on security, regulated data, licensing,
-  volume and platform limits, integrations and existing data. Record each impact as a decision
-  or an open question; never resolve it silently.
+  volume and platform limits, integrations and existing data. Record each impact as a decision,
+  a risk or an open question; never resolve it silently.
 - A decision that affects architecture or project-wide conventions also gets an ADR in
-  `docs/adr/`.
+  `docs/adr/` (format and naming in `docs/adr/0000-template.md`). Every new table is such a
+  decision: its ADR names the standard table that was considered and why it does not fit.
 
 Close Decisions with a components table: the contract handed to tasks.md.
 
@@ -103,12 +105,6 @@ Close Decisions with a components table: the contract handed to tasks.md.
 
 Logical names use the prefix in `.power-platform/project.json`. Do not assign components to
 solutions: the development standards decide that from the branch.
-
-## Assumptions and open questions
-- What could not be decided is an assumption with a recommended default and a question for
-  the client, under Open Questions.
-- An assumption that would change the architecture is marked **blocking**. A design with an
-  open blocking assumption is not ready for the technical gate.
 
 ## References
 - Microsoft Learn is the reference for what the platform offers and how it behaves. Use the

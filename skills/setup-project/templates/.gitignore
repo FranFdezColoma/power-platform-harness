@@ -45,6 +45,7 @@ blob-report/
 # cache; scripts/auth.py and scripts/enable-mcp-client.py are committed.
 .env
 *.env
+.env.*
 .token_cache.bin
 .dataverse/
 .claude/mcp_settings.json
